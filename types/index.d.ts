@@ -253,4 +253,7 @@ type CurrentUserResponse = DonorUser | HospitalUser | NoUser;
 
 type DonorFileField = "bloodTestReport" | "idProof" | "medicalCertificate";
 
-type HospitalFileField = "bloodBankLicenseDoc" | "hospitalRegistrationCert" | "authorizedRepIdProof";
+type HospitalFileField =
+  | "bloodBankLicenseDoc"
+  | "hospitalRegistrationCert"
+  | "authorizedRepIdProof";
