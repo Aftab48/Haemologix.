@@ -10,6 +10,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import PasskeyModal from "@/components/PasskeyModal";
 import { stats, features, steps, CarouselData } from "@/constants";
+import { getCurrentUser } from "@/lib/actions/user.actions";
 import { gsap } from "@/lib/gsap-utils";
 import Navbar from "@/components/Navbar";
 
@@ -44,6 +45,24 @@ const HomePage = () => {
   const [dbUser, setDbUser] = useState<any>(null);
   const userId = user?.id;
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!isSignedIn) return;
+
+      const email = user?.primaryEmailAddress?.emailAddress;
+      if (!email) return;
+
+      try {
+        const res = await getCurrentUser(email);
+        console.log("[Dashboard] server action response:", res); // <--- log raw response
+        setDbUser(res);
+      } catch (err) {
+        console.error("[Dashboard] error calling getCurrentUser:", err);
+      }
+    };
+
+    fetchUser();
+  }, [isSignedIn, user]);
 
   useEffect(() => {
     if (dbUser) {
@@ -279,7 +298,7 @@ const HomePage = () => {
                 >
                   <CardContent className="p-4 h-full flex flex-col">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center shrink-0 gradient-oxygen text-white">
+                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 gradient-oxygen text-white">
                         <feature.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
@@ -472,7 +491,7 @@ const HomePage = () => {
                           alt={item.title}
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
-                        <div className="absolute inset-0 bg-linear-to-t from-primary/30 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-primary/30 to-transparent"></div>
                       </div>
                       <div className="p-4 text-center bg-white/80 backdrop-blur-sm">
                         <h3

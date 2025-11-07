@@ -2,6 +2,7 @@
 
 import { db } from "@/db";
 import { getCoordinatesFromAddress } from "../geocoding";
+import { generatePresignedUrl, uploadDonorFile } from "./awsupload.actions";
 
 export async function submitDonorRegistration(formData: DonorData) {
   try {
@@ -59,12 +60,22 @@ export async function submitDonorRegistration(formData: DonorData) {
         longitude,
       },
     });
-    
+
     const fileFields: (keyof DonorData)[] = [
       "bloodTestReport",
       "idProof",
       "medicalCertificate",
     ];
+
+    await Promise.all(
+      fileFields.map(async (field) => {
+        const file = formData[field] as unknown as File | null;
+        if (file) {
+          await uploadDonorFile(field as any, file, newDonor.id);
+        }
+      })
+    );
+
 
     return { success: true, donorId: newDonor.id };
   } catch (error) {
@@ -73,11 +84,16 @@ export async function submitDonorRegistration(formData: DonorData) {
   }
 }
 
-export async function updateDonorRegistration(donorId: string, formData: DonorData) {
+export async function updateDonorRegistration(
+  donorId: string,
+  formData: DonorData
+) {
   try {
     // Check suspension status first
-    const donor = await db.donorRegistration.findUnique({ where: { id: donorId } });
-    
+    const donor = await db.donorRegistration.findUnique({
+      where: { id: donorId },
+    });
+
     if (!donor) {
       return { success: false, error: "Donor not found" };
     }
@@ -152,12 +168,58 @@ export async function updateDonorRegistration(donorId: string, formData: DonorDa
       "idProof",
       "medicalCertificate",
     ];
-    
-    
+
+    await Promise.all(
+      fileFields.map(async (field) => {
+        const file = formData[field] as unknown as File | null;
+        if (file) {
+          await uploadDonorFile(field as any, file, donorId);
+        }
+      })
+    );
+
 
     return { success: true, donorId };
   } catch (error) {
     console.error("Error updating donor:", error);
     return { success: false, error: "Failed to update donor" };
+  }
+}
+
+export async function fetchAllDonors() {
+  try {
+    const donors = await db.donorRegistration.findMany();
+    return donors;
+  } catch (error) {
+    console.error("Error fetching donors:", error);
+    return [];
+  }
+}
+
+export async function fetchDonorById(donorId: string) {
+  try {
+    const donor = await db.donorRegistration.findUnique({
+      where: { id: donorId },
+    });
+    if (!donor) return null;
+
+    // Generate presigned URLs for file fields
+    const bloodTestReportUrl = await generatePresignedUrl(
+      donor.bloodTestReport
+    );
+    const idProofUrl = await generatePresignedUrl(donor.idProof);
+    const medicalCertificateUrl = await generatePresignedUrl(
+      donor.medicalCertificate
+    );
+
+    return {
+      ...donor,
+      bloodTestReport: bloodTestReportUrl,
+      idProof: idProofUrl,
+      medicalCertificate: medicalCertificateUrl,
+    };
+  } catch (error) {
+    console.error("Error fetching donor by ID:", error);
+    return null;
   }
 }
