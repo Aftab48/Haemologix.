@@ -1,10 +1,18 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from "@clerk/nextjs";
 import Image from "next/image";
 
 interface NavbarProps {
-  activePage?: "features" | "impact" | "contact";
+  activePage?: "features" | "impact" | "contact" | "pilot";
 }
 
 const Navbar = ({ activePage }: NavbarProps) => {
@@ -12,7 +20,7 @@ const Navbar = ({ activePage }: NavbarProps) => {
     const baseClasses =
       "hover:text-secondary transition-colors font-dm-sans font-medium";
     const isActive = activePage === page;
-    return `${baseClasses} ${isActive ? "text-primary" : "text-text-da.rk"}`;
+    return `${baseClasses} ${isActive ? "text-primary" : "text-text-dark"}`;
   };
 
   return (
@@ -45,9 +53,29 @@ const Navbar = ({ activePage }: NavbarProps) => {
           <Link href="/contact" className={getLinkClassName("contact")}>
             Contact
           </Link>
-          
+          <Link href="/pilot" className={getLinkClassName("pilot")}>
+            Pilot
+          </Link>
         </nav>
-       
+        <div className="flex items-center gap-1 md:gap-3">
+          <SignedOut>
+            <SignInButton>
+              <Button className="gradient-oxygen hover:opacity-90 text-white rounded-full font-medium text-sm sm:text-base h-8 sm:h-10 px-4 sm:px-5 cursor-pointer transition-all">
+                Sign In
+              </Button>
+            </SignInButton>
+            <div className="hidden lg:block">
+              <SignUpButton>
+                <Button className="gradient-ruby hover:opacity-90 text-white rounded-full font-medium text-sm sm:text-base h-8 sm:h-10 px-4 sm:px-5 cursor-pointer transition-all">
+                  Sign Up
+                </Button>
+              </SignUpButton>
+            </div>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
       </div>
     </header>
   );
