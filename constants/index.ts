@@ -82,3 +82,48 @@ export const steps = [
     delay: "1.2s",
   },
 ];
+
+export const CarouselData = [
+  {
+    title: "City General Hospital",
+    image:
+      "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=400&h=300&fit=crop",
+    type: "hospital",
+  },
+  {
+    title: "Our Dedicated Donors",
+    image:
+      "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop",
+    type: "donors",
+  },
+  {
+    title: "St. Mary's Medical Center",
+    image:
+      "https://images.unsplash.com/photo-1551190822-a9333d879b1f?w=400&h=300&fit=crop",
+    type: "hospital",
+  },
+  {
+    title: "Blood Drive Events",
+    image:
+      "https://tmckolkata.com/in/wp-content/uploads/2021/06/blood_donation1.jpg",
+    type: "event",
+  },
+  {
+    title: "Regional Medical Hub",
+    image:
+      "https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=400&h=300&fit=crop",
+    type: "hospital",
+  },
+  {
+    title: "Community Heroes",
+    image:
+      "https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=300&fit=crop",
+    type: "donors",
+  },
+  {
+    title: "Emergency Response Team",
+    image:
+      "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=400&h=300&fit=crop",
+    type: "team",
+  },
+];
