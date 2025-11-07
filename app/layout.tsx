@@ -1,0 +1,23 @@
+import type React from "react";
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "HaemoLogix - Real-Time Blood Donation Platform",
+  description:
+    "Emergency blood shortage alert and donor mobilization system connecting hospitals with eligible donors through real-time notifications and geolocation matching.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+      <html className="scroll-smooth" lang="en">
+        <body className="font-dm-sans antialiased">
+          {children}
+        </body>
+      </html>
+  );
+}
