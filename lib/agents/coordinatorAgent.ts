@@ -374,6 +374,7 @@ export async function selectOptimalMatch(requestId: string): Promise<{
     let confidence: number;
     let rejectedDonors: MatchedDonor[];
     let llmUsed: boolean = false;
+    let modelUsed: string = "fallback";
 
     try {
       // Get historical patterns for context
@@ -404,6 +405,7 @@ export async function selectOptimalMatch(requestId: string): Promise<{
         (d) => d.donor_id !== selectedDonor.donor_id
       );
       llmUsed = true;
+      modelUsed = llmResult.model_used || "claude-4.5";
 
       console.log(
         `[CoordinatorAgent] LLM selected: ${
@@ -475,6 +477,7 @@ export async function selectOptimalMatch(requestId: string): Promise<{
               selectedDonor.eta_minutes
             } min, Distance: ${selectedDonor.distance_km.toFixed(1)} km.`,
           llm_used: llmUsed,
+          model_used: llmUsed ? (modelUsed || "claude-4.5") : undefined,
           llm_confidence: confidence,
           total_accepted: scoredDonors.length,
           fallback_plan: "inventory_search_if_no_show",

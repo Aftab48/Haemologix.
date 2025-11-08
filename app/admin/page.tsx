@@ -48,6 +48,7 @@ import { updateUserStatus } from "@/lib/actions/user.actions";
 import GradientBackground from "@/components/GradientBackground";
 import AgenticDashboard from "@/components/AgenticDashboard";
 import AIAgentLogs from "@/components/AIAgentLogs";
+import LLMReasoningView from "@/components/LLMReasoningView";
 import {
   sendApplicationApprovedEmail,
   sendApplicationRejectedEmail,
@@ -349,8 +350,9 @@ export default function AdminDashboard() {
   const tabOptions = [
     { value: "users", label: "User Management" },
     { value: "agentic", label: "Agentic AI Dashboard" },
-    { value: "analytics", label: "System Analytics" },
     { value: "activity", label: "AI Agent Logs" },
+    { value: "llm-reasoning", label: "LLM Reasoning" },
+    { value: "analytics", label: "System Analytics" },
   ];
 
   if (loading) return <p>Loading Data...</p>;
@@ -579,7 +581,7 @@ export default function AdminDashboard() {
               </SelectContent>
             </Select>
           </div>
-          <TabsList className="lg:grid w-full grid-cols-4 glass-morphism border hidden border-white/20">
+          <TabsList className="lg:grid w-full grid-cols-5 glass-morphism border hidden border-white/20">
             {tabOptions.map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -993,6 +995,11 @@ export default function AdminDashboard() {
           {/* AI Agent Logs Tab */}
           <TabsContent value="activity" className="space-y-6">
             <AIAgentLogs />
+          </TabsContent>
+
+          {/* LLM Reasoning Tab */}
+          <TabsContent value="llm-reasoning" className="space-y-6">
+            <LLMReasoningView />
           </TabsContent>
         </Tabs>
       </div>

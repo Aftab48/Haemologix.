@@ -28,8 +28,11 @@ const LLM_CONFIG: LLMConfig = {
   maxTokens: 150000,
 };
 
+// Fallback model configuration
+const FALLBACK_MODEL = "openai/gpt-4o-mini";
+
 /**
- * Call Claude via OpenRouter
+ * Call LLM via OpenRouter
  */
 async function callLLM(
   prompt: string,
@@ -37,12 +40,14 @@ async function callLLM(
     temperature?: number;
     responseFormat?: "json" | "text";
     systemPrompt?: string;
+    model?: string;
   } = {}
 ): Promise<string> {
   if (!LLM_CONFIG.apiKey) {
     throw new Error("OPENROUTER_API_KEY not configured");
   }
 
+  const model = options.model || LLM_CONFIG.model;
   const systemPrompt =
     options.systemPrompt ||
     "You are an intelligent blood donation coordinator agent. Analyze scenarios carefully, consider all factors, and provide clear, reasoned decisions with explanations.";
@@ -57,7 +62,7 @@ async function callLLM(
       "X-Title": "Haemologix Agentic AI",
     },
     body: JSON.stringify({
-      model: LLM_CONFIG.model,
+      model: model,
       messages: [
         {
           role: "system",
@@ -87,17 +92,20 @@ async function callLLM(
 
 /**
  * Main reasoning function
+ * Tries Claude Sonnet 4.5 first, falls back to GPT-4o mini if it fails
  */
 export async function reasonAboutDecision(
   request: ReasoningRequest
 ): Promise<ReasoningResponse> {
+  // First, try Claude Sonnet 4.5
   try {
-    console.log("[LLM Reasoning] Processing decision with Claude 4.5...");
+    console.log("[LLM Reasoning] Processing decision with Claude Sonnet 4.5...");
 
     const response = await callLLM(request.prompt, {
       temperature: request.temperature,
       responseFormat: request.responseFormat,
       systemPrompt: request.systemPrompt,
+      model: LLM_CONFIG.model,
     });
 
     let parsed: any;
@@ -119,16 +127,56 @@ export async function reasonAboutDecision(
       model_used: "claude-4.5",
     };
   } catch (error) {
-    console.error("[LLM Reasoning] Error:", error);
-    // Fallback to basic reasoning if LLM fails
-    return {
-      reasoning: `LLM reasoning unavailable: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }. Using algorithmic fallback.`,
-      decision: null,
-      confidence: 0.5,
-      model_used: "fallback",
-    };
+    console.warn(
+      "[LLM Reasoning] Claude Sonnet 4.5 failed, trying GPT-4o mini fallback...",
+      error instanceof Error ? error.message : "Unknown error"
+    );
+
+    // Fallback to GPT-4o mini
+    try {
+      console.log("[LLM Reasoning] Processing decision with GPT-4o mini...");
+
+      const response = await callLLM(request.prompt, {
+        temperature: request.temperature,
+        responseFormat: request.responseFormat,
+        systemPrompt: request.systemPrompt,
+        model: FALLBACK_MODEL,
+      });
+
+      let parsed: any;
+      if (request.responseFormat === "json") {
+        try {
+          parsed = JSON.parse(response);
+        } catch (e) {
+          // If JSON parsing fails, wrap the response
+          parsed = { reasoning: response };
+        }
+      } else {
+        parsed = { reasoning: response };
+      }
+
+      console.log("[LLM Reasoning] GPT-4o mini fallback succeeded");
+
+      return {
+        reasoning: parsed.reasoning || response,
+        decision: parsed.decision || parsed,
+        confidence: parsed.confidence || 0.75, // Slightly lower confidence for fallback
+        model_used: "gpt-4o-mini",
+      };
+    } catch (fallbackError) {
+      console.error("[LLM Reasoning] Both models failed:", fallbackError);
+      // Fallback to basic reasoning if both LLMs fail
+      return {
+        reasoning: `LLM reasoning unavailable: ${
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : "Unknown error"
+        }. Using algorithmic fallback.`,
+        decision: null,
+        confidence: 0.5,
+        model_used: "fallback",
+      };
+    }
   }
 }
 
@@ -149,6 +197,7 @@ export async function reasonAboutDonorSelection(
   reasoning: string;
   confidence: number;
   alternatives?: any[];
+  model_used: string;
 }> {
   const prompt = `You are a blood donation coordinator agent. Analyze this scenario and select the optimal donor:
 
@@ -232,6 +281,7 @@ Respond in JSON format:
     alternatives: decision.alternative_considerations
       ? [decision.alternative_considerations]
       : undefined,
+    model_used: result.model_used,
   };
 }
 

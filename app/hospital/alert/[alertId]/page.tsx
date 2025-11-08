@@ -20,9 +20,6 @@ import {
   Package,
   Truck,
   Brain,
-  TrendingUp,
-  MapPin,
-  Phone,
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { XCircle } from "lucide-react";
+import LLMReasoningCard from "@/components/LLMReasoningCard";
 
 export default function AlertDetailsPage() {
   const params = useParams();
@@ -629,12 +626,34 @@ export default function AlertDetailsPage() {
                     reasoningText = '';
                   }
 
+                  // Check if LLM was used
+                  const llmUsed = decision.decision?.llm_used === true;
+                  const modelUsed = decision.decision?.model_used || (llmUsed ? "claude-4.5" : "unknown");
+
                   // Extract and format response time from reasoning text
                   const responseTimeMatch = extractResponseTime(reasoningText);
                   if (responseTimeMatch) {
                     reasoningText = responseTimeMatch.cleanText;
                   }
 
+                  // If LLM was used, use the enhanced LLMReasoningCard component
+                  if (llmUsed && reasoningText) {
+                    return (
+                      <LLMReasoningCard
+                        key={decision.id}
+                        reasoning={reasoningText}
+                        modelUsed={modelUsed}
+                        confidence={decision.confidence || decision.decision?.llm_confidence || decision.decision?.confidence}
+                        agentType={decision.agentType}
+                        eventType={decision.eventType}
+                        timestamp={decision.createdAt}
+                        requestId={decision.requestId || undefined}
+                        decision={decision.decision}
+                      />
+                    );
+                  }
+
+                  // Otherwise, use the standard display
                   return (
                     <div
                       key={decision.id}
