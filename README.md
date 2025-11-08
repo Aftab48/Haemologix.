@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Haemologix - AI-Powered Blood Donation Platform
+
+A Next.js application for managing blood donation alerts, donor matching, and hospital coordination with intelligent AI agents.
+
+## Features
+
+### 🤖 Agentic AI System
+- **6 Autonomous Agents**: Hospital, Donor, Coordinator, Inventory, Logistics, and Verification agents
+- **LLM-Powered Reasoning**: Claude Sonnet 4.5 with GPT-4o mini fallback via OpenRouter
+- **Real-time Decision Making**: AI agents make intelligent decisions about donor matching, inventory selection, and transport planning
+- **Detailed Reasoning Display**: View comprehensive LLM reasoning in admin panel and alert details
+
+### 🏥 Core Functionality
+- Hospital alert creation and management
+- Donor registration and response system
+- Intelligent donor matching with multi-factor scoring
+- Inventory management across hospitals
+- Transport planning and logistics coordination
+- Real-time workflow tracking
+
+### 📊 Admin Dashboard
+- User management (donors & hospitals)
+- Agentic AI Dashboard with live agent activity
+- LLM Reasoning viewer with filtering and search
+- AI Agent Logs
+- System analytics
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+ 
+- PostgreSQL database
+- OpenRouter API key (for LLM reasoning)
 
+### Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in your values:
+
+**Required:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `OPENROUTER_API_KEY` - For LLM reasoning (Claude Sonnet 4.5, GPT-4o mini)
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` - For SMS
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` - For emails
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME` - For file uploads
+- `NEXT_PUBLIC_APP_URL` - Application base URL
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` - Clerk authentication
+
+**Optional:**
+- `GEMINI_API_KEY` - PDF extraction
+- `HF_API_KEY` - Document processing
+- `OPENCAGE_API_KEY` - Geocoding fallback
+- `NEXT_PUBLIC_ADMIN_PASSKEY` - Admin panel access
+
+See `env.example` for complete list of all environment variables.
+
+### Installation
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## LLM Reasoning System
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The platform uses advanced LLM reasoning for critical decisions:
 
-## Learn More
+- **Primary Model**: Claude Sonnet 4.5 (via OpenRouter)
+- **Fallback Model**: GPT-4o mini (automatic fallback on failure)
+- **Use Cases**: Donor selection, urgency assessment, inventory selection, transport planning, eligibility analysis
 
-To learn more about Next.js, take a look at the following resources:
+View detailed reasoning in:
+- Admin Panel → LLM Reasoning tab
+- Alert Details page → Agent Actions Timeline
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See `Documentations/` folder for:
+- Agent implementations and build summaries
+- Agent value propositions
+- Real-life scenarios and workflows
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Framework**: Next.js 14 (App Router)
+- **Database**: PostgreSQL with Prisma ORM
+- **AI/LLM**: OpenRouter (Claude Sonnet 4.5, GPT-4o mini)
+- **UI**: Tailwind CSS, shadcn/ui components
+- **Authentication**: Clerk
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy
+
+Deploy on Vercel or any Next.js-compatible platform. Ensure environment variables are configured.

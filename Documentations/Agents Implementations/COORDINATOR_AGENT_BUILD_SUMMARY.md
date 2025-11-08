@@ -4,12 +4,13 @@
 
 ### 1. Coordinator Agent Core Logic (`lib/agents/coordinatorAgent.ts`)
 - **Response Processing**: Handles donor accept/decline responses
-- **Match Selection**: 4-factor scoring algorithm (ETA 40%, Distance 30%, Reliability 20%, Health 10%)
-- **Optimal Selection**: Ranks multiple accepted donors, selects best match
+- **Match Selection**: LLM-powered selection using Claude Sonnet 4.5 (with GPT-4o mini fallback)
+- **Optimal Selection**: Ranks multiple accepted donors, uses LLM to select best match with detailed reasoning
 - **Communication**: Sends confirmation SMS to selected donor, "sorry" SMS to rejected donors
 - **State Management**: Updates workflow state (pending → matching → fulfilled)
 - **Timeout Handling**: Triggers fallback when no donors respond within window
 - **Arrival Confirmation**: Marks request as fulfilled when donor arrives
+- **LLM Integration**: Stores model used, confidence scores, and detailed reasoning in decisions
 
 **Key Functions:**
 - `processDonorResponse()`: Processes accept/decline responses
@@ -89,8 +90,19 @@ GET /api/donor/respond?token=donor-id-alert-id-timestamp&status=decline
 
 ## Intelligent Features
 
-### 1. 4-Factor Match Scoring Algorithm
-Selects optimal donor from multiple acceptances:
+### 1. LLM-Powered Donor Selection
+Uses Claude Sonnet 4.5 (with GPT-4o mini fallback) to analyze:
+- Medical urgency (CRITICAL vs HIGH vs MEDIUM)
+- Donor reliability (past no-shows are critical)
+- Distance vs time trade-offs (traffic, transport mode)
+- Time of day patterns (traffic, availability)
+- Historical performance patterns
+- Overall match quality (health, eligibility)
+
+Provides detailed step-by-step reasoning for each selection decision.
+
+### 2. 4-Factor Match Scoring Algorithm
+Initial scoring before LLM analysis:
 - **ETA (40%)**: Fastest arrival wins
 - **Distance (30%)**: Closer is better
 - **Reliability (20%)**: Past completion rate
