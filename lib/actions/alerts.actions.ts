@@ -24,6 +24,26 @@ export async function createAlert(input: CreateAlertInput) {
       },
     });
 
+    // 🤖 AGENTIC: Automatically trigger Hospital Agent
+    try {
+      // In production, use full URL. In dev, relative path works
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      
+      // Trigger Hospital Agent asynchronously (non-blocking)
+      fetch(`${baseUrl}/api/agents/hospital`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertId: alert.id }),
+      }).catch((err) => {
+        console.error("Failed to trigger Hospital Agent:", err);
+      });
+
+      console.log(`[Alert Created] Triggered Hospital Agent for alert: ${alert.id}`);
+    } catch (agentError) {
+      // Don't fail alert creation if agent trigger fails
+      console.error("Error triggering Hospital Agent:", agentError);
+    }
+
     return { success: true, alert };
   } catch (err) {
     console.error("Error creating alert:", err);
@@ -36,7 +56,7 @@ export async function getAlerts(hospitalId: string) {
   try {
     const alerts = await db.alert.findMany({
       where: { hospitalId },
-      include: {
+      include: { 
         hospital: true,
         responses: true, // Include all responses
       },
@@ -57,10 +77,41 @@ export async function getAlerts(hospitalId: string) {
       autoDetected: a.autoDetected,
       hospital: a.hospital,
       responses: a.responses.length, // Total responses count
-      confirmed: a.responses.filter((r) => r.confirmed).length, // Confirmed responses count
+      confirmed: a.responses.filter(r => r.confirmed).length, // Confirmed responses count
     }));
   } catch (err) {
     console.error("[getAlerts] error:", err);
     throw err;
   }
+}
+
+// server-side
+export async function getAlertResponseStats(alertId: string) {
+  const [responses, confirmed, donorResponses] = await Promise.all([
+    db.alertResponse.count({ where: { alertId } }),
+    db.alertResponse.count({ where: { alertId, confirmed: true } }),
+    db.alertResponse.findMany({
+      where: { alertId },
+      include: { donor: true },
+    }),
+  ]);
+
+  const formattedDonors = donorResponses.map((r) => ({
+    id: r.donor.id,
+    donorName: `${r.donor.firstName} ${r.donor.lastName}`,
+    lastDonation: r.donor.lastDonation
+      ? r.donor.lastDonation.toDateString()
+      : "Never",
+    bloodType: r.donor.bloodGroup,
+    distance: "0", // TODO: calculate or fetch
+    eta: "—", // TODO: calculate ETA if applicable
+    status: (r.confirmed ? "Confirmed" : "Pending") as "Confirmed" | "Pending",
+    phone: r.donor.phone,
+  }));
+
+  return {
+    responses,
+    confirmed,
+    donorResponses: formattedDonors, // 👈 already frontend-safe
+  };
 }

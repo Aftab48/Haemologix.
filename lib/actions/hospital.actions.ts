@@ -75,11 +75,11 @@ export async function createHospital(hospitalData: HospitalData) {
       },
     });
 
-    const fileFields: (keyof HospitalData)[] = [
-      "bloodBankLicenseDoc",
-      "hospitalRegistrationCert",
-      "authorizedRepIdProof",
-    ];
+     const fileFields: (keyof HospitalData)[] = [
+       "bloodBankLicenseDoc",
+       "hospitalRegistrationCert",
+       "authorizedRepIdProof",
+     ];
 
     await Promise.all(
       fileFields.map(async (field) => {
@@ -145,9 +145,9 @@ export async function fetchHospitalInventory(hospitalId: string) {
   try {
     // Fetch all inventory units for this hospital
     const inventoryUnits = await db.inventoryUnit.findMany({
-      where: {
+      where: { 
         hospitalId,
-        reserved: false, // Only count non-reserved units
+        reserved: false // Only count non-reserved units
       },
     });
 
@@ -242,28 +242,23 @@ export async function updateHospitalInventory(
     }
 
     // 🤖 AGENTIC: Trigger auto-alert check for this blood type
-    console.log(
-      `[updateHospitalInventory] Triggering auto-alert check for ${bloodType}...`
-    );
+    console.log(`[updateHospitalInventory] Triggering auto-alert check for ${bloodType}...`);
     try {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      
       // Trigger Hospital Agent to check if alert should be created
       fetch(`${baseUrl}/api/agents/hospital/check-inventory`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hospitalId,
-          bloodType,
+        body: JSON.stringify({ 
+          hospitalId, 
+          bloodType 
         }),
       }).catch((err) => {
         console.error("Failed to trigger auto-alert check:", err);
       });
 
-      console.log(
-        `[updateHospitalInventory] Auto-alert check triggered for ${bloodType}`
-      );
+      console.log(`[updateHospitalInventory] Auto-alert check triggered for ${bloodType}`);
     } catch (agentError) {
       // Don't fail inventory update if agent trigger fails
       console.error("Error triggering auto-alert check:", agentError);

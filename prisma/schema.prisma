@@ -7,29 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ApprovalStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum Decision {
-  APPROVED
-  REJECTED
-}
-
-enum UrgencyLevel {
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum ResponseStatus {
-  PENDING
-  CONFIRMED
-  DECLINED
-}
-
 model DonorRegistration {
   id                      String          @id @default(uuid())
   firstName               String
@@ -74,8 +51,10 @@ model DonorRegistration {
   updatedAt               DateTime        @updatedAt
   latitude                String?
   longitude               String?
-  approvals               Approval[]      @relation("DonorApprovals")
   responses               AlertResponse[]
+  approvals               Approval[]      @relation("DonorApprovals")
+  verifications           DonorVerification[]
+  responseHistory         DonorResponseHistory[] @relation("DonorHistory")
 }
 
 model HospitalRegistration {
@@ -132,6 +111,8 @@ model HospitalRegistration {
   approvals                     Approval[]     @relation("HospitalApprovals")
   inventory                     InventoryUnit[]
   inventoryThresholds           InventoryThreshold[]
+  transportsFrom                TransportRequest[] @relation("TransportFrom")
+  transportsTo                  TransportRequest[] @relation("TransportTo")
 }
 
 model Admin {
@@ -185,6 +166,114 @@ model AlertResponse {
   donor     DonorRegistration @relation(fields: [donorId], references: [id])
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Decision {
+  APPROVED
+  REJECTED
+}
+
+enum UrgencyLevel {
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ResponseStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  fileUrl   String
+  createdAt DateTime @default(now())
+}
+
+
+enum VerificationStatus {
+  PENDING           // doc uploaded, waiting for AI check
+  AUTO_REJECTED     // AI found mismatch / unsafe values
+  MATCHED_FOR_ADMIN // AI passed, awaiting admin approval
+  ADMIN_REJECTED    // admin manually rejected
+  APPROVED          // admin approved
+}
+
+enum DonorDocumentType {
+  BLOOD_TEST
+  ID_PROOF
+  MEDICAL_CERTIFICATE
+}
+
+model DonorVerification {
+  id              String             @id @default(cuid())
+  donorId         String
+  donor           DonorRegistration              @relation(fields: [donorId], references: [id])
+
+  docType         DonorDocumentType
+  docUrl          String
+  status          VerificationStatus @default(PENDING)
+
+  confidence      Float?
+  extractedFields Json?
+  mismatchFields  Json?
+
+  // Eligibility screening fields
+  eligibilityChecked Boolean @default(false)
+  eligibilityPassed  Boolean @default(false)
+  failedCriteria     Json?   // Stores which eligibility criteria failed
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Agentic AI Tables
+
+model AgentEvent {
+  id        String   @id @default(uuid())
+  type      String   // "shortage.request", "donor.candidate", etc.
+  payload   Json     // Event data
+  processed Boolean  @default(false)
+  agentType String?  // Which agent created this event
+  createdAt DateTime @default(now())
+
+  @@index([type, processed])
+  @@index([createdAt])
+}
+
+model WorkflowState {
+  id              String   @id @default(uuid())
+  requestId       String   @unique // Links to Alert.id
+  status          String   // "pending", "matching", "fulfilled", "failed"
+  currentStep     String   // Current workflow step
+  metadata        Json     // Workflow metadata (matched donors, inventory, etc.)
+  fulfillmentPlan Json?    // Fulfillment strategy and details
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([status])
+}
+
+model AgentDecision {
+  id         String   @id @default(uuid())
+  agentType  String   // "hospital", "donor", "coordinator", etc.
+  eventType  String   // Type of decision made
+  eventId    String?  // Related event ID
+  requestId  String?  // Related shortage request ID
+  decision   Json     // Decision details and reasoning
+  confidence Float?   // Confidence score (0-1)
+  createdAt  DateTime @default(now())
+
+  @@index([agentType, createdAt])
+  @@index([requestId])
+}
+
 model InventoryUnit {
   id          String   @id @default(uuid())
   hospitalId  String
@@ -216,4 +305,67 @@ model InventoryThreshold {
 
   @@unique([hospitalId, bloodType]) // One threshold per blood type per hospital
   @@index([hospitalId])
+}
+
+model TransportRequest {
+  id             String    @id @default(uuid())
+  fromHospitalId String
+  toHospitalId   String
+  bloodType      String
+  units          Int
+  status         String    // "pending", "picked_up", "in_transit", "delivered", "cancelled"
+  eta            DateTime?
+  pickupTime     DateTime?
+  deliveryTime   DateTime?
+  transportMethod String?  // "ambulance", "courier", "scheduled"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  fromHospital HospitalRegistration @relation("TransportFrom", fields: [fromHospitalId], references: [id])
+  toHospital   HospitalRegistration @relation("TransportTo", fields: [toHospitalId], references: [id])
+
+  @@index([status])
+  @@index([fromHospitalId])
+  @@index([toHospitalId])
+}
+
+model DonorResponseHistory {
+  id               String    @id @default(uuid())
+  donorId          String
+  requestId        String    // Alert ID
+  notifiedAt       DateTime
+  respondedAt      DateTime?
+  responseTime     Int?      // Response time in seconds
+  status           String    // "notified", "accepted", "declined", "no_response"
+  confirmed        Boolean   @default(false) // Did they show up?
+  noShow           Boolean   @default(false)
+  distance         Float?    // Distance in km
+  score            Float?    // Donor score at time of selection
+  expectedArrival  DateTime? // Expected arrival time (calculated when accepted)
+  createdAt        DateTime  @default(now())
+
+  donor DonorRegistration @relation("DonorHistory", fields: [donorId], references: [id])
+
+  @@index([donorId])
+  @@index([requestId])
+  @@index([status])
+}
+
+enum AgentType {
+  HOSPITAL
+  DONOR
+  COORDINATOR
+  INVENTORY
+  LOGISTICS
+  COMPLIANCE
+  VERIFICATION
+}
+
+enum WorkflowStatus {
+  PENDING
+  MATCHING
+  FULFILLMENT_IN_PROGRESS
+  FULFILLED
+  FAILED
+  CANCELLED
 }

@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { getCoordinatesFromAddress } from "../geocoding";
 import { generatePresignedUrl, uploadDonorFile } from "./awsupload.actions";
+import { verifyDonorDocuments } from "./verification.actions";
 
 export async function submitDonorRegistration(formData: DonorData) {
   try {
@@ -60,7 +61,7 @@ export async function submitDonorRegistration(formData: DonorData) {
         longitude,
       },
     });
-
+    
     const fileFields: (keyof DonorData)[] = [
       "bloodTestReport",
       "idProof",
@@ -76,6 +77,8 @@ export async function submitDonorRegistration(formData: DonorData) {
       })
     );
 
+    // Trigger AI verification (markDonorAsApplied will be called inside if verification passes)
+    await verifyDonorDocuments(newDonor.id);
 
     return { success: true, donorId: newDonor.id };
   } catch (error) {
@@ -84,16 +87,11 @@ export async function submitDonorRegistration(formData: DonorData) {
   }
 }
 
-export async function updateDonorRegistration(
-  donorId: string,
-  formData: DonorData
-) {
+export async function updateDonorRegistration(donorId: string, formData: DonorData) {
   try {
     // Check suspension status first
-    const donor = await db.donorRegistration.findUnique({
-      where: { id: donorId },
-    });
-
+    const donor = await db.donorRegistration.findUnique({ where: { id: donorId } });
+    
     if (!donor) {
       return { success: false, error: "Donor not found" };
     }
@@ -168,7 +166,7 @@ export async function updateDonorRegistration(
       "idProof",
       "medicalCertificate",
     ];
-
+    
     await Promise.all(
       fileFields.map(async (field) => {
         const file = formData[field] as unknown as File | null;
@@ -178,6 +176,8 @@ export async function updateDonorRegistration(
       })
     );
 
+    // Re-trigger verification
+    await verifyDonorDocuments(donorId);
 
     return { success: true, donorId };
   } catch (error) {
