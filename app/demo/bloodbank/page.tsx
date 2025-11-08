@@ -50,12 +50,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserButton, useUser } from "@clerk/nextjs";
-import {
-  createAlert,
-  getAlerts,
-} from "@/lib/actions/alerts.actions";
-import { getCurrentUser } from "@/lib/actions/user.actions";
-import { fetchHospitalInventory, updateHospitalInventory } from "@/lib/actions/hospital.actions";
+
 import { formatLastActivity } from "@/lib/utils";
 import Image from "next/image";
 import GradientBackground from "@/components/GradientBackground";
@@ -72,14 +67,12 @@ type Donor = {
   lastDonation: string;
 };
 
-export default function HospitalDashboard() {
+export default function BloodbankDashboard() {
   const [showCreateAlert, setShowCreateAlert] = useState(false);
   const [bloodTypeFilter, setBloodTypeFilter] = useState("all");
-  const [alertStatusFilter, setAlertStatusFilter] = useState<"all" | "active" | "closed">("all");
-  const [isCreatingAlert, setIsCreatingAlert] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
 
-  // Mock data constants
-  const mockDonorResponses: DonorUI[] = [
+  const [donorResponses, setDonorResponses] = useState<DonorUI[]>([
     {
       id: "1",
       type: "Blood",
@@ -234,40 +227,109 @@ export default function HospitalDashboard() {
       eta: "25 minutes",
       lastDonation: "2 weeks ago",
     },
-  ];
+  ]);
 
-  const mockBloodInventory: InventoryItem[] = [
-    { type: "A+", current: 15, minimum: 20 },
-    { type: "A-", current: 8, minimum: 10 },
-    { type: "B+", current: 25, minimum: 15 },
-    { type: "B-", current: 5, minimum: 8 },
-    { type: "AB+", current: 12, minimum: 10 },
-    { type: "AB-", current: 3, minimum: 5 },
-    { type: "O+", current: 8, minimum: 25 },
-    { type: "O-", current: 6, minimum: 15 },
-  ];
-
-  const [donorResponses, setDonorResponses] = useState<DonorUI[]>(mockDonorResponses);
-
-  const [bloodInventory, setBloodInventory] = useState<InventoryItem[]>([]);
-  const [isLoadingInventory, setIsLoadingInventory] = useState(true);
-  const [hasInventoryData, setHasInventoryData] = useState(false);
+  const [bloodInventory, setBloodInventory] = useState([
+    { type: "A+", current: 120, minimum: 150 },
+    { type: "A-", current: 25, minimum: 40 },
+    { type: "B+", current: 100, minimum: 130 },
+    { type: "B-", current: 20, minimum: 35 },
+    { type: "AB+", current: 15, minimum: 25 },
+    { type: "AB-", current: 5, minimum: 10 },
+    { type: "O+", current: 150, minimum: 200 },
+    { type: "O-", current: 30, minimum: 50 },
+    { type: "Plasma", current: 300, minimum: 400 },
+    { type: "Platelets", current: 40, minimum: 60 },
+  ]);
 
   const [isInvModalOpen, setIsInvModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [isSavingInventory, setIsSavingInventory] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [checkingAutoAlerts, setCheckingAutoAlerts] = useState(false);
 
-  type AlertWithType = Omit<Alerts, 'status'> & { 
-    type?: AlertType | string;
-    status?: string;
-    autoDetected?: boolean;
-  };
+  type AlertWithType = Alerts & { type?: AlertType | string };
 
-  const [activeAlerts, setActiveAlerts] = useState<AlertWithType[]>([]);
+  const [activeAlerts, setActiveAlerts] = useState<AlertWithType[]>([
+    {
+      id: "mock-plasma-1",
+      type: "Plasma",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      radius: "10",
+      description: "Urgent plasma required for surgery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-plasma-2",
+      type: "Plasma",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "2",
+      radius: "15",
+      description: "Plasma donation needed for patient recovery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-platelets-1",
+      type: "platelets",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      radius: "10",
+      description: "Urgent platelets required for surgery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-platelets-2",
+      type: "platelets",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "2",
+      radius: "15",
+      description: "Urgent platelets needed for patient recovery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "1",
+      bloodType: "O+",
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      description:
+        "Emergency surgery patient needs immediate blood transfusion",
+      createdAt: "15 minutes ago",
+      hospitalId: "mock-hospital",
+      radius: "15",
+      responses: 12,
+      confirmed: 3,
+      status: "Active",
+    },
+    {
+      id: "2",
+      bloodType: "A-",
+      urgency: "HIGH",
+      unitsNeeded: "2",
+      hospitalId: "mock-hospital",
+      radius: "20",
+      description: "Accident victim requires blood for surgery",
+      createdAt: "1 hour ago",
+      responses: 8,
+      confirmed: 2,
+      status: "Active",
+    },
+  ]);
   // const [donorResponses, setDonorResponses] = useState<DonorUI[]>([]);
-  const [currentAlert, setCurrentAlert] = useState<AlertWithType | null>(null);
+  //const [currentAlert, setCurrentAlert] = useState<AlertWithType | null>(null);
 
   // useEffect(() => {
   //   if (activeAlerts.length > 0 && !currentAlert) {
@@ -296,6 +358,89 @@ export default function HospitalDashboard() {
   //   if (currentAlert?.id) fetchResponses();
   // }, [currentAlert]);
 
+  // put this near the top of your component file (outside useEffect)
+  const mockAlerts: AlertWithType[] = [
+    {
+      id: "mock-plasma-1",
+      type: "Plasma",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      radius: "10",
+      description: "Urgent plasma required for surgery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-plasma-2",
+      type: "Plasma",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "2",
+      radius: "15",
+      description: "Plasma donation needed for patient recovery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-platelets-1",
+      type: "platelets",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      radius: "10",
+      description: "Urgent platelets required for surgery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "mock-platelets-2",
+      type: "platelets",
+      bloodType: null,
+      urgency: "CRITICAL",
+      unitsNeeded: "2",
+      radius: "15",
+      description: "Urgent platelets needed for patient recovery",
+      hospitalId: "mock-hospital",
+      createdAt: formatLastActivity(new Date(), false),
+      responses: 0,
+      confirmed: 0,
+    },
+    {
+      id: "1",
+      bloodType: "O+",
+      urgency: "CRITICAL",
+      unitsNeeded: "3",
+      description:
+        "Emergency surgery patient needs immediate blood transfusion",
+      createdAt: "15 minutes ago",
+      hospitalId: "mock-hospital",
+      radius: "15",
+      responses: 12,
+      confirmed: 3,
+      status: "Active",
+    },
+    {
+      id: "2",
+      bloodType: "A-",
+      urgency: "HIGH",
+      unitsNeeded: "2",
+      hospitalId: "mock-hospital",
+      radius: "20",
+      description: "Accident victim requires blood for surgery",
+      createdAt: "1 hour ago",
+      responses: 8,
+      confirmed: 2,
+      status: "Active",
+    },
+  ];
+
   const [newAlert, setNewAlert] = useState({
     type: "",
     bloodType: "",
@@ -304,166 +449,82 @@ export default function HospitalDashboard() {
     description: "",
     radius: "10",
   });
-  const router = useRouter();
-
-  const [dbUser, setDbUser] = useState<any>(null);
 
   const [user, setUser] = useState<HospitalData | null>(null);
 
-  const { user: loggedInUser } = useUser();
   const [hospitalID, setHospitalID] = useState("");
-  useEffect(() => {
-    const fetchUser = async () => {
-      const email = loggedInUser?.primaryEmailAddress?.emailAddress;
-      if (!email) return;
+  //   useEffect(() => {
+  //     const fetchUser = async () => {
+  //       const email = loggedInUser?.primaryEmailAddress?.emailAddress;
+  //       if (!email) return;
 
-      try {
-        const res = await getCurrentUser(email);
-        console.log("[Dashboard] server action response:", res);
-        setDbUser(res);
-      } catch (err) {
-        console.error("[Dashboard] error calling getCurrentUser:", err);
-      }
-    };
+  //       try {
+  //         const res = await getCurrentUser(email);
+  //         console.log("[Dashboard] server action response:", res);
+  //         setDbUser(res);
+  //       } catch (err) {
+  //         console.error("[Dashboard] error calling getCurrentUser:", err);
+  //       }
+  //     };
 
-    fetchUser();
-  }, [loggedInUser]);
+  //     fetchUser();
+  //   }, [loggedInUser]);
 
-  useEffect(() => {
-    if (dbUser?.role === "HOSPITAL" && dbUser.user) {
-      console.log("[Dashboard] user is a hospital:", dbUser.user.id);
-      setHospitalID(dbUser.user.id);
-    }
-  }, [dbUser]);
+  //   useEffect(() => {
+  //     if (dbUser?.role === "HOSPITAL" && dbUser.user) {
+  //       console.log("[Dashboard] user is a hospital:", dbUser.user.id);
+  //       setHospitalID(dbUser.user.id);
+  //     }
+  //   }, [dbUser]);
 
-  useEffect(() => {
-    if (!hospitalID) return; // skip if hospitalID not set
+  //   useEffect(() => {
+  //     if (!hospitalID) return; // skip if hospitalID not set
 
-    const fetchAlerts = async () => {
-      try {
-        const res = await getAlerts(hospitalID);
-        setActiveAlerts(res);
-      } catch (err) {
-        console.error("Error loading alerts:", err);
-      }
-    };
+  //     const fetchAlerts = async () => {
+  //       try {
+  //         const res = await getAlerts(hospitalID);
+  //         setActiveAlerts([...mockPlasmaAlerts, ...res]);
+  //       } catch (err) {
+  //         console.error("Error loading alerts:", err);
+  //       }
+  //     };
 
-    fetchAlerts();
-  }, [hospitalID]);
-
-  // Filter alerts based on status
-  const filteredAlerts = useMemo(() => {
-    if (alertStatusFilter === "all") {
-      return activeAlerts;
-    } else if (alertStatusFilter === "active") {
-      return activeAlerts.filter(
-        (alert) => alert.status === "PENDING" || alert.status === "NOTIFIED" || alert.status === "MATCHED"
-      );
-    } else {
-      return activeAlerts.filter((alert) => alert.status === "FULFILLED");
-    }
-  }, [activeAlerts, alertStatusFilter]);
-
-  // Fetch inventory data when hospitalID is set
-  useEffect(() => {
-    if (!hospitalID) return;
-
-    const fetchInventory = async () => {
-      setIsLoadingInventory(true);
-      try {
-        const inventory = await fetchHospitalInventory(hospitalID);
-        // If inventory data exists, use it
-        if (inventory && inventory.length > 0) {
-          setBloodInventory(inventory);
-          setHasInventoryData(true);
-          console.log("[Dashboard] Loaded inventory from database:", inventory);
-        } else {
-          // No inventory found - hospital needs to initialize inventory
-          setBloodInventory([]);
-          setHasInventoryData(false);
-          console.log("[Dashboard] No inventory found for hospital");
-        }
-      } catch (err) {
-        console.error("Error loading inventory:", err);
-        setBloodInventory([]);
-        setHasInventoryData(false);
-      } finally {
-        setIsLoadingInventory(false);
-      }
-    };
-
-    fetchInventory();
-  }, [hospitalID]);
+  //     fetchAlerts();
+  //   }, [hospitalID]);
 
   const handleCreateAlert = async () => {
     if (
       !newAlert.type ||
-      !newAlert.bloodType ||
       !newAlert.urgency ||
       !newAlert.unitsNeeded ||
       !newAlert.description
     ) {
-      alert("Please fill in all required fields");
       return;
     }
 
-    setIsCreatingAlert(true);
-
     const alertInput = {
+      id: Date.now().toString(), // temporary ID for local state
+      type: newAlert.type as AlertType,
       bloodType: newAlert.bloodType as BloodType,
       urgency: newAlert.urgency.toUpperCase() as Urgency,
       unitsNeeded: newAlert.unitsNeeded,
       radius: newAlert.radius! as Radius,
       description: newAlert.description,
       hospitalId: hospitalID,
+      createdAt: new Date().toLocaleString(),
+      responses: 0,
+      confirmed: 0,
     };
 
     try {
-      // Create alert in database
-      const result = await createAlert(alertInput);
-      
-      if (result.success && result.alert) {
-        console.log("Alert created successfully:", result.alert);
-        
-        // Add the new alert to local state immediately with proper formatting
-        const newAlertForState = {
-          id: result.alert.id,
-          type: newAlert.type as AlertType,
-          bloodType: result.alert.bloodType as BloodType,
-          urgency: result.alert.urgency as Urgency,
-          unitsNeeded: result.alert.unitsNeeded,
-          radius: result.alert.searchRadius as Radius,
-          description: result.alert.description || "",
-          hospitalId: result.alert.hospitalId,
-          createdAt: new Date(result.alert.createdAt).toLocaleString(),
-          status: result.alert.status,
-          autoDetected: result.alert.autoDetected || false,
-          responses: 0,
-          confirmed: 0,
-        };
-        
-        // Update local state immediately
-        setActiveAlerts((prev) => [newAlertForState, ...prev]);
-        
-        // Reset form and close modal
-        setNewAlert({
-          type: "",
-          bloodType: "",
-          urgency: "",
-          unitsNeeded: "",
-          description: "",
-          radius: "10",
-        });
-        setShowCreateAlert(false);
-      } else {
-        console.error("Failed to create alert:", result.error);
-        alert("Failed to create alert. Please try again.");
-      }
+      //await createAlert(alertInput);
+      console.log("Alert created on server:", alertInput);
     } catch (err) {
-      console.error("Error creating alert:", err);
-      alert("An error occurred while creating the alert. Please try again.");
+      console.error("Failed to create alert on server:", err);
     } finally {
-      setIsCreatingAlert(false);
+      // Always update local state so the workflow continues
+      setActiveAlerts((prev) => [alertInput, ...prev]);
+      setShowCreateAlert(false);
     }
   };
 
@@ -493,28 +554,8 @@ export default function HospitalDashboard() {
     }
   };
 
-  const getAlertStatusInfo = (status?: string) => {
-    switch (status) {
-      case "PENDING":
-        return { label: "Pending", color: "bg-gray-600 text-white border-gray-700" };
-      case "NOTIFIED":
-        return { label: "Notified", color: "bg-blue-600 text-white border-blue-700" };
-      case "MATCHED":
-        return { label: "Matched", color: "bg-purple-600 text-white border-purple-700" };
-      case "FULFILLED":
-        return { label: "Fulfilled", color: "bg-green-600 text-white border-green-700" };
-      default:
-        return { label: "Active", color: "bg-yellow-600 text-white border-yellow-700" };
-    }
-  };
-
   const criticalTypes = bloodInventory.filter(
     (item) => getStatus(item.current, item.minimum) === "Critical"
-  ).length;
-
-  // Count only truly active alerts (not fulfilled)
-  const activeAlertsCount = activeAlerts.filter(
-    (alert) => alert.status === "PENDING" || alert.status === "NOTIFIED" || alert.status === "MATCHED"
   ).length;
 
   // Total donor responses (all entries in donorResponses)
@@ -537,15 +578,6 @@ export default function HospitalDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [distanceFilter, setDistanceFilter] = useState("all");
-  
-  // Close Alert Modal States
-  const [showCloseAlertModal, setShowCloseAlertModal] = useState(false);
-  const [selectedAlertToClose, setSelectedAlertToClose] = useState<string | null>(null);
-  const [selectedDonors, setSelectedDonors] = useState<string[]>([]);
-  const [fulfillmentSource, setFulfillmentSource] = useState<string>("registered_donors");
-  const [externalDonorEmail, setExternalDonorEmail] = useState("");
-  const [otherDetails, setOtherDetails] = useState("");
-  const [isClosingAlert, setIsClosingAlert] = useState(false);
 
   const filteredDonors = useMemo(() => {
     return donorResponses.filter((donor) => {
@@ -557,117 +589,37 @@ export default function HospitalDashboard() {
         distanceFilter === "all" ||
         parseFloat(donor.distance) <= parseFloat(distanceFilter);
 
-      const matchesBloodType =
-        bloodTypeFilter === "all" || donor.bloodType === bloodTypeFilter;
+      const matchesType = typeFilter === "all" || donor.type === typeFilter;
 
-      return matchesName && matchesDistance && matchesBloodType;
+      const matchesBloodType =
+        donor.type !== "Blood" ||
+        typeFilter !== "Blood" ||
+        bloodTypeFilter === "all" ||
+        donor.bloodType === bloodTypeFilter;
+
+      return matchesName && matchesDistance && matchesType && matchesBloodType;
     });
-  }, [donorResponses, searchTerm, distanceFilter, bloodTypeFilter]);
+  }, [donorResponses, searchTerm, distanceFilter, typeFilter, bloodTypeFilter]);
 
   const handleConfirm = (donorID: string) => {
-    setDonorResponses((prev) =>
-      prev.map((donor) =>
-        donor.id === donorID ? { ...donor, status: "Confirmed" } : donor
-      )
-    );
-    setJustConfirmed(donorID);
+    // Call the API to confirm the donor's response
+    // confirmDonorResponse(donorID)
+    //   .then(() => {
+    //     // Update local state to reflect the confirmed status
+    //     setDonorResponses((prev) =>
+    //       prev.map((donor) =>
+    //         donor.id === donorID ? { ...donor, confirmed: true } : donor
+    //       )
+    //     );
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error confirming donor response:", error);
+    //   });
   };
-
-  const handleOpenCloseAlertModal = (alertId: string) => {
-    setSelectedAlertToClose(alertId);
-    setSelectedDonors([]);
-    setFulfillmentSource("registered_donors");
-    setExternalDonorEmail("");
-    setOtherDetails("");
-    setShowCloseAlertModal(true);
-  };
-
-  const handleCloseAlert = async () => {
-    if (!selectedAlertToClose) return;
-
-    if (fulfillmentSource === "registered_donors" && selectedDonors.length === 0) {
-      alert("Please select at least one donor who donated");
-      return;
-    }
-    
-    if (fulfillmentSource === "external_donor" && !externalDonorEmail) {
-      alert("Please provide the external donor's email");
-      return;
-    }
-
-    if (fulfillmentSource === "other" && !otherDetails) {
-      alert("Please provide details");
-      return;
-    }
-
-    setIsClosingAlert(true);
-
-    try {
-      // If registered donors were selected, confirm their arrivals
-      if (fulfillmentSource === "registered_donors" && selectedDonors.length > 0) {
-        for (const donorId of selectedDonors) {
-          await fetch("/api/agents/coordinator", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "confirm_arrival",
-              request_id: selectedAlertToClose,
-              donor_id: donorId,
-            }),
-          });
-        }
-      }
-
-      // Update alert with fulfillment details
-      const fulfillmentData = {
-        source: fulfillmentSource,
-        donors: selectedDonors,
-        externalDonorEmail: fulfillmentSource === "external_donor" ? externalDonorEmail : null,
-        otherDetails: fulfillmentSource === "other" || fulfillmentSource === "hospital_bloodbank" ? otherDetails : null,
-      };
-
-      const response = await fetch(`/api/alerts/${selectedAlertToClose}/close`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fulfillmentData),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert("Alert closed successfully!");
-        setShowCloseAlertModal(false);
-        // Refresh alerts
-        const updatedAlerts = await getAlerts(hospitalID);
-        setActiveAlerts(updatedAlerts);
-      } else {
-        alert("Failed to close alert: " + result.error);
-      }
-    } catch (error) {
-      console.error("Error closing alert:", error);
-      alert("An error occurred while closing the alert");
-    } finally {
-      setIsClosingAlert(false);
-    }
-  };
-
 
   const handleUpdateInventory = () => {
-    // If no inventory exists, start with default structure
-    if (bloodInventory.length === 0) {
-      setEditingItem({ type: "A+", current: 0, minimum: 0 });
-    } else {
-      setEditingItem(bloodInventory[0]); // default first one
-    }
-    setSaveSuccess(false);
+    setEditingItem(bloodInventory[0]); // default first one
     setIsInvModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    if (!isSavingInventory) {
-      setIsInvModalOpen(false);
-      setSaveSuccess(false);
-    }
   };
 
   function getStatus(
@@ -679,75 +631,12 @@ export default function HospitalDashboard() {
     return "Good";
   }
 
-  const handleSave = async () => {
-    if (!editingItem || !hospitalID) return;
-    
-    setIsSavingInventory(true);
-    setSaveSuccess(false);
-    
-    try {
-      // Update database
-      const result = await updateHospitalInventory(
-        hospitalID,
-        editingItem.type,
-        editingItem.current,
-        editingItem.minimum
-      );
-
-      if (result.success) {
-        console.log("[Dashboard] Inventory updated successfully in database");
-        
-        // Show success feedback
-        setSaveSuccess(true);
-        
-        // Refetch inventory to get latest data
-        setIsLoadingInventory(true);
-        const inventory = await fetchHospitalInventory(hospitalID);
-        if (inventory && inventory.length > 0) {
-          setBloodInventory(inventory);
-          setHasInventoryData(true);
-        }
-        setIsLoadingInventory(false);
-        
-        // Close modal after brief success display
-        setTimeout(() => {
-          setIsInvModalOpen(false);
-          setSaveSuccess(false);
-        }, 1000);
-
-        // 🤖 AGENTIC: Check for auto-created alerts after a short delay
-        // This gives the agent workflow time to process and create alerts if needed
-        console.log("[Dashboard] Checking for auto-created alerts in 3 seconds...");
-        setCheckingAutoAlerts(true);
-        setTimeout(async () => {
-          try {
-            const updatedAlerts = await getAlerts(hospitalID);
-            const previousCount = activeAlerts.length;
-            const newCount = updatedAlerts.length;
-            
-            setActiveAlerts(updatedAlerts);
-            
-            if (newCount > previousCount) {
-              console.log(`[Dashboard] ✅ Auto-alert detected! ${newCount - previousCount} new alert(s) created`);
-            } else {
-              console.log("[Dashboard] No auto-alerts created (inventory above critical threshold)");
-            }
-          } catch (err) {
-            console.error("[Dashboard] Error refreshing alerts:", err);
-          } finally {
-            setCheckingAutoAlerts(false);
-          }
-        }, 3000); // Wait 3 seconds for agent workflow to complete
-      } else {
-        console.error("[Dashboard] Failed to update inventory:", result.error);
-        alert("Failed to update inventory. Please try again.");
-      }
-    } catch (error) {
-      console.error("[Dashboard] Error updating inventory:", error);
-      alert("An error occurred while updating inventory.");
-    } finally {
-      setIsSavingInventory(false);
-    }
+  const handleSave = () => {
+    if (!editingItem) return;
+    setBloodInventory((prev) =>
+      prev.map((b) => (b.type === editingItem.type ? editingItem : b))
+    );
+    setIsInvModalOpen(false);
   };
 
   return (
@@ -764,17 +653,17 @@ export default function HospitalDashboard() {
               <div className="w-10 h-10 bg-red-800 rounded-full flex items-center justify-center">
                 <Link href={"/"}>
                   <Image
-                    src="/logo.png"
-                    alt="Logo"
-                    width={48}
-                    height={48}
-                    className="rounded-full"
-                  />
+                                       src="/logo.png"
+                                       alt="Logo"
+                                       width={48}
+                                       height={48}
+                                       className="rounded-full"
+                                     />
                 </Link>
               </div>
               <div>
                 <h1 className="text-xl font-bold text-text-dark">
-                  Hospital Dashboard
+                  Blood Bank Dashboard
                 </h1>
                 <p className="text-sm text-text-dark/80">{user?.hospitalName}</p>
               </div>
@@ -813,6 +702,7 @@ export default function HospitalDashboard() {
                         <SelectContent className="bg-gray-800 text-white border-gray-700">
                           <SelectItem value="Blood">Blood</SelectItem>
                           <SelectItem value="Plasma">Plasma</SelectItem>
+                          <SelectItem value="Platelets">Platelets</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -921,24 +811,15 @@ export default function HospitalDashboard() {
                       <Button
                         variant="outline"
                         onClick={() => setShowCreateAlert(false)}
-                        disabled={isCreatingAlert}
-                        className="flex-1 border-white/20 hover:bg-white/20 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 border-white/20 hover:bg-white/20 text-slate-900"
                       >
                         Cancel
                       </Button>
                       <Button
                         onClick={handleCreateAlert}
-                        disabled={isCreatingAlert}
-                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
                       >
-                        {isCreatingAlert ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                            Creating...
-                          </>
-                        ) : (
-                          "Send Alert"
-                        )}
+                        Send Alert
                       </Button>
                     </div>
                   </div>
@@ -951,17 +832,6 @@ export default function HospitalDashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Auto-Alert Checking Notification */}
-        {checkingAutoAlerts && (
-          <div className="mb-6 p-4 bg-blue-500/20 border border-blue-500/40 rounded-lg flex items-center gap-3 animate-pulse">
-            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            <div>
-              <p className="text-blue-200 font-medium">🤖 AI Agent Processing...</p>
-              <p className="text-blue-300/80 text-sm">Checking if auto-alert creation is needed</p>
-            </div>
-          </div>
-        )}
-
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="glass-morphism border border-accent/30 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50">
@@ -988,7 +858,7 @@ export default function HospitalDashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-text-dark">
-                    {activeAlertsCount}
+                    {activeAlerts.length}
                   </p>
                   <p className="text-sm text-text-dark/80">Active Alerts</p>
                 </div>
@@ -1041,7 +911,7 @@ export default function HospitalDashboard() {
               value="alerts"
               className="text-text-dark data-[state=active]:bg-yellow-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
             >
-              Alerts ({activeAlerts.length})
+              Active Alerts ({activeAlerts.length})
             </TabsTrigger>
             <TabsTrigger
               value="responses"
@@ -1070,267 +940,187 @@ export default function HospitalDashboard() {
                 onClick={() => handleUpdateInventory()}
               >
                 <TrendingUp className="w-4 h-4 mr-2" />
-                {hasInventoryData ? "Update Inventory" : "Add Inventory"}
+                Update Inventory
               </Button>
             </div>
 
-            {isLoadingInventory ? (
-              <Card className="glass-morphism border border-accent/30 text-text-dark">
-                <CardContent className="p-12 text-center">
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-6 h-6 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-lg text-text-dark">Loading inventory...</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : !hasInventoryData ? (
-              <Card className="glass-morphism border border-accent/30 text-text-dark">
-                <CardContent className="p-12 text-center">
-                  <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-text-dark mb-2">
-                    No Inventory Data
-                  </h3>
-                  <p className="text-text-dark/80 mb-4">
-                    Add units to your inventory to start tracking blood types and availability.
-                  </p>
-                  <Button
-                    className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
-                    onClick={() => handleUpdateInventory()}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {bloodInventory.map((item) => {
+                const status = getStatus(item.current, item.minimum);
+                return (
+                  <Card
+                    key={item.type}
+                    className="glass-morphism border border-accent/30 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Inventory
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {bloodInventory.map((item) => {
-                  const status = getStatus(item.current, item.minimum);
-                  return (
-                    <Card
-                      key={item.type}
-                      className="glass-morphism border border-accent/30 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-text-dark">{item.type}</h3>
-                          <Badge className={getInventoryStatus(status)}>
-                            {status}
-                          </Badge>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-text-dark">{item.type}</h3>
+                        <Badge className={getInventoryStatus(status)}>
+                          {status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm text-text-dark/80">
+                          <span>Current: {item.current} units</span>
+                          <span>Min: {item.minimum} units</span>
                         </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between text-sm text-text-dark/80">
-                            <span>Current: {item.current} units</span>
-                            <span>Min: {item.minimum} units</span>
-                          </div>
-                          <Progress
-                            value={(item.current / item.minimum) * 100}
-                            className="h-2 bg-white/20 [&::-webkit-progress-bar]:bg-white/20 [&::-webkit-progress-value]:bg-yellow-600 [&::-moz-progress-bar]:bg-yellow-600"
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                        <Progress
+                          value={(item.current / item.minimum) * 100}
+                          className="h-2 bg-white/20 [&::-webkit-progress-bar]:bg-white/20 [&::-webkit-progress-value]:bg-yellow-600 [&::-moz-progress-bar]:bg-yellow-600"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </TabsContent>
-          {isInvModalOpen && editingItem && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-              <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-                <h2 className="text-lg font-semibold mb-4">
-                  {hasInventoryData ? "Update Blood Inventory" : "Add Blood Inventory"}
-                </h2>
+          <Dialog open={isInvModalOpen} onOpenChange={setIsInvModalOpen}>
+            <DialogContent className="max-w-md bg-white/10 backdrop-blur-lg border border-white/20 text-white rounded-lg p-6">
+              <DialogHeader>
+                <DialogTitle className="text-white text-lg font-semibold">
+                  Update Inventory
+                </DialogTitle>
+                <DialogDescription className="text-gray-200">
+                  Adjust current units for the selected type
+                </DialogDescription>
+              </DialogHeader>
 
-                {/* Blood Type Selector */}
-                <label className="block mb-2">Blood Type</label>
-                <select
-                  value={editingItem.type}
-                  onChange={(e) => {
-                    const selectedType = e.target.value;
-                    const existing = bloodInventory.find(
-                      (b) => b.type === selectedType
-                    );
-                    if (existing) {
-                      setEditingItem(existing);
-                    } else {
-                      // New blood type, start with defaults
-                      setEditingItem({
-                        type: selectedType,
-                        current: 0,
-                        minimum: 0,
-                      });
-                    }
-                  }}
-                  disabled={isSavingInventory}
-                  className="w-full border rounded px-3 py-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
-                    (type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                {/* Current Units */}
-                <label className="block mb-2">Current Units</label>
-                <input
-                  type="number"
-                  value={editingItem.current === 0 ? "" : editingItem.current}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const newCurrent = value === "" ? 0 : Number(value);
-                    setEditingItem((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            current: newCurrent,
-                          }
-                        : prev
-                    );
-                  }}
-                  placeholder="0"
-                  disabled={isSavingInventory}
-                  className="w-full border rounded px-3 py-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-
-                {/* Minimum Required Units */}
-                <label className="block mb-2">Minimum Required Units</label>
-                <input
-                  type="number"
-                  value={editingItem.minimum === 0 ? "" : editingItem.minimum}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const newMinimum = value === "" ? 0 : Number(value);
-                    setEditingItem((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            minimum: newMinimum,
-                          }
-                        : prev
-                    );
-                  }}
-                  placeholder="0"
-                  disabled={isSavingInventory}
-                  className="w-full border rounded px-3 py-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-
-                {/* Show computed Status (read-only) */}
-                <label className="block mb-2">Status</label>
-                <div
-                  className={`w-full border rounded px-3 py-2 mb-6 ${
-                    getStatus(editingItem.current, editingItem.minimum) ===
-                    "Critical"
-                      ? "text-red-600"
-                      : getStatus(editingItem.current, editingItem.minimum) ===
-                        "Low"
-                      ? "text-yellow-600"
-                      : "text-green-600"
-                  }`}
-                >
-                  {getStatus(editingItem.current, editingItem.minimum)}
+              <div className="space-y-4">
+                {/* Type Selector */}
+                <div className="space-y-2">
+                  <Label className="text-white">Type</Label>
+                  <Select
+                    value={editingItem?.type || ""}
+                    onValueChange={(value) => {
+                      const selected = bloodInventory.find(
+                        (b) => b.type === value
+                      )!;
+                      setEditingItem(selected);
+                    }}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/20 text-white">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 text-white border-gray-700">
+                      {bloodInventory.map((b) => (
+                        <SelectItem key={b.type} value={b.type}>
+                          {b.type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Success Message */}
-                {saveSuccess && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-green-700 font-medium">
-                      Inventory updated successfully!
-                    </span>
+                {/* Current Units */}
+                <div className="space-y-2">
+                  <Label className="text-white">Current Units</Label>
+                  <Input
+                    type="number"
+                    placeholder="Enter current units"
+                    value={editingItem?.current || ""}
+                    onChange={(e) => {
+                      const newCurrent = Number(e.target.value);
+                      setEditingItem((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              current: newCurrent,
+                              status:
+                                newCurrent < prev.minimum * 0.4
+                                  ? "Critical"
+                                  : newCurrent < prev.minimum * 0.75
+                                  ? "Low"
+                                  : "Good",
+                            }
+                          : prev
+                      );
+                    }}
+                    className="bg-white/5 border-white/20 text-white placeholder:text-gray-400"
+                  />
+                </div>
+
+                {/* Status (read-only) */}
+                <div className="space-y-2">
+                  <Label className="text-white">Status</Label>
+                  <div
+                    className={`w-full border rounded px-3 py-2 ${
+                      getStatus(
+                        editingItem?.current || 0,
+                        editingItem?.minimum || 1
+                      ) === "Critical"
+                        ? "text-red-600"
+                        : getStatus(
+                            editingItem?.current || 0,
+                            editingItem?.minimum || 1
+                          ) === "Low"
+                        ? "text-yellow-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {getStatus(
+                      editingItem?.current || 0,
+                      editingItem?.minimum || 1
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-2">
+                <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    onClick={handleCloseModal}
-                    disabled={isSavingInventory}
+                    onClick={() => setIsInvModalOpen(false)}
+                    className="flex-1 border-white/20 hover:bg-white/20 text-slate-900"
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                     onClick={handleSave}
-                    disabled={isSavingInventory}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-green-500/50"
                   >
-                    {isSavingInventory ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      "Save"
-                    )}
+                    Save
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
+            </DialogContent>
+          </Dialog>
 
           {/* Active Alerts Tab */}
           <TabsContent value="alerts" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-text-dark">
-                Emergency Alerts
+                Active Emergency Alerts
               </h2>
-              <div className="flex items-center gap-3">
-                <Select
-                  value={alertStatusFilter}
-                  onValueChange={(value: any) => setAlertStatusFilter(value)}
-                >
-                  <SelectTrigger className="w-40 bg-white/5 border-white/20 text-text-dark">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 text-white border-gray-700">
-                    <SelectItem value="all">All Alerts</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
-                  onClick={() => setShowCreateAlert(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Alert
-                </Button>
-              </div>
+              <Button
+                className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
+                onClick={() => setShowCreateAlert(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Alert
+              </Button>
             </div>
 
-            {filteredAlerts.length === 0 ? (
-              <Card className="glass-morphism border border-accent/30 text-text-dark">
+            {activeAlerts.length === 0 ? (
+              <Card className="glass-morphism border border-accent/30 text-white">
                 <CardContent className="p-12 text-center">
                   <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-text-dark mb-2">
-                    {alertStatusFilter === "all" 
-                      ? "No Alerts" 
-                      : alertStatusFilter === "active" 
-                      ? "No Active Alerts" 
-                      : "No Closed Alerts"}
+                    No Active Alerts
                   </h3>
                   <p className="text-text-dark/80 mb-4">
-                    {alertStatusFilter === "closed" 
-                      ? "You have no closed alerts yet." 
-                      : "Create an emergency alert when you need blood urgently."}
+                    Create an emergency alert when you need blood urgently.
                   </p>
-                  {alertStatusFilter !== "closed" && (
-                    <Button
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
-                      onClick={() => setShowCreateAlert(true)}
-                    >
-                      Create First Alert
-                    </Button>
-                  )}
+                  <Button
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
+                    onClick={() => setShowCreateAlert(true)}
+                  >
+                    Create First Alert
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {filteredAlerts.map((alert) => (
+                {activeAlerts.map((alert) => (
                   <Card
                     key={alert.id}
                     className="glass-morphism border border-accent/30 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50"
@@ -1338,23 +1128,11 @@ export default function HospitalDashboard() {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            {/* Status Badge */}
-                            <Badge className={getAlertStatusInfo(alert.status).color}>
-                              {getAlertStatusInfo(alert.status).label}
-                            </Badge>
-
+                          <div className="flex items-center gap-3 mb-2">
                             {/* Urgency */}
                             <Badge className={getUrgencyColor(alert.urgency!)}>
                               {alert.urgency}
                             </Badge>
-
-                            {/* Auto-detected badge */}
-                            {alert.autoDetected && (
-                              <Badge className="bg-indigo-600 text-white border-indigo-700">
-                                🤖 Auto-detected
-                              </Badge>
-                            )}
 
                             {/* Alert Type (defaults to Blood if not set) */}
                             <Badge
@@ -1391,38 +1169,26 @@ export default function HospitalDashboard() {
                               {alert.createdAt}
                             </div>
                             <div className="flex items-center gap-1">
-                              <Users className="w-4 h-4 text-blue-400" />
-                              <span className="font-medium text-text-dark">
-                                {alert.responses || 0}
-                              </span>
-                              <span>responses</span>
+                              <Users className="w-4 h-4 text-gray-400" />
+                              {alert.responses ? alert.responses : 0} responses
                             </div>
                             <div className="flex items-center gap-1">
-                              <CheckCircle className="w-4 h-4 text-green-400" />
-                              <span className="font-medium text-text-dark">
-                                {alert.confirmed || 0}
-                              </span>
-                              <span>confirmed</span>
+                              <CheckCircle className="w-4 h-4 text-gray-400" />
+                              {alert.confirmed ? alert.confirmed : 0} confirmed
                             </div>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex gap-3">
-                        <Link
-                          href={`/hospital/alert/${alert.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-white/20 text-white bg-yellow-600 hover:bg-white/20 transition-all duration-300"
                         >
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-white/20 text-white bg-yellow-600 hover:bg-white/20 transition-all duration-300"
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                        </Link>
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1431,21 +1197,10 @@ export default function HospitalDashboard() {
                           <Share2 className="w-4 h-4 mr-2" />
                           Share Alert
                         </Button>
-                        {alert.status !== "FULFILLED" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenCloseAlertModal(alert.id)}
-                            className="bg-green-600 text-white border-green-600 hover:bg-green-700 transition-all duration-300"
-                          >
+                        <Button className="bg-green-600 hover:bg-green-700 text-white">
                             <CheckCircle className="w-4 h-4 mr-2" />
-                            Close Alert
-                          </Button>
-                        ) : (
-                          <Badge className="bg-green-600 text-white px-4 py-2">
-                            ✓ Fulfilled
-                          </Badge>
-                        )}
+                            Accept & Donate
+                            </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1459,39 +1214,58 @@ export default function HospitalDashboard() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-text-dark">Donor Responses</h2>
               <div className="flex gap-3">
+                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64 bg-white/5 border-white/20 text-text-dark placeholder:text-gray-400 focus-visible:ring-yellow-600"
+                    className="pl-10 w-64 bg-white/5 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-yellow-600"
                   />
                 </div>
-                <Select
-                  value={bloodTypeFilter}
-                  onValueChange={setBloodTypeFilter}
-                >
-                  <SelectTrigger className="w-32 bg-white/5 border-white/20 text-text-dark">
-                    <SelectValue placeholder="Blood Type" />
+
+                {/* Type Filter */}
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-32 bg-white/5 border-white/20 text-white">
+                    <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white border-gray-700">
                     <SelectItem value="all">All</SelectItem>
-                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
-                      (type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      )
-                    )}
+                    <SelectItem value="Blood">Blood</SelectItem>
+                    <SelectItem value="Plasma">Plasma</SelectItem>
+                    <SelectItem value="Platelets">Platelets</SelectItem>
                   </SelectContent>
                 </Select>
 
+                {/* Conditional Blood Type Filter */}
+                {typeFilter === "Blood" && (
+                  <Select
+                    value={bloodTypeFilter}
+                    onValueChange={setBloodTypeFilter}
+                  >
+                    <SelectTrigger className="w-32 bg-white/5 border-white/20 text-white">
+                      <SelectValue placeholder="Blood Type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 text-white border-gray-700">
+                      <SelectItem value="all">All</SelectItem>
+                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
+                        (type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Distance Filter */}
                 <Select
                   value={distanceFilter}
                   onValueChange={setDistanceFilter}
                 >
-                  <SelectTrigger className="w-32 bg-white/5 border-white/20 text-text-dark">
+                  <SelectTrigger className="w-32 bg-white/5 border-white/20 text-white">
                     <SelectValue placeholder="Distance" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white border-gray-700">
@@ -1504,6 +1278,8 @@ export default function HospitalDashboard() {
                 </Select>
               </div>
             </div>
+
+            {/* Donors Table */}
             <Card className="glass-morphism border border-accent/30 text-white">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -1512,6 +1288,9 @@ export default function HospitalDashboard() {
                       <tr>
                         <th className="text-left p-4 font-medium text-text-dark">
                           Donor
+                        </th>
+                        <th className="text-left p-4 font-medium text-text-dark">
+                          Type
                         </th>
                         <th className="text-left p-4 font-medium text-text-dark">
                           Blood Type
@@ -1549,18 +1328,28 @@ export default function HospitalDashboard() {
                               </p>
                             </div>
                           </td>
+
+                          {/* Type */}
                           <td className="p-4">
                             <Badge
                               variant="outline"
                               className="bg-white/5 border-white/20 text-text-dark"
                             >
-                              {response.bloodType}
+                              {response.type}
                             </Badge>
                           </td>
-                          <td className="p-4 text-text-dark/80">
+
+                          {/* Blood Type (only for Blood donors) */}
+                          <td className="p-4 text-text-dark/70">
+                            {response.type === "Blood"
+                              ? response.bloodType
+                              : "-"}
+                          </td>
+
+                          <td className="p-4 text-text-dark/70">
                             {response.distance}
                           </td>
-                          <td className="p-4 text-text-dark/80">{response.eta}</td>
+                          <td className="p-4 text-text-dark/70">{response.eta}</td>
                           <td className="p-4">
                             <Badge
                               className={
@@ -1624,6 +1413,7 @@ export default function HospitalDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-6">
             <h2 className="text-2xl font-bold text-text-dark">
@@ -1669,7 +1459,7 @@ export default function HospitalDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-morphism border border-accent/30 text-text-dark transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50">
+              <Card className="glass-morphism border border-accent/30 text-white transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/50">
                 <CardHeader>
                   <CardTitle className="text-text-dark">
                     Blood Type Demand
@@ -1704,123 +1494,6 @@ export default function HospitalDashboard() {
           </TabsContent>
         </Tabs>
       </div>
-
-      {/* Close Alert Modal */}
-      <Dialog open={showCloseAlertModal} onOpenChange={setShowCloseAlertModal}>
-        <DialogContent className="max-w-2xl bg-white/10 backdrop-blur-lg border border-white/20 text-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl">Close Alert & Record Fulfillment</DialogTitle>
-            <DialogDescription className="text-gray-200">
-              Please provide details about how this alert was fulfilled
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-4">
-            {/* Fulfillment Source */}
-            <div className="space-y-2">
-              <Label className="text-white text-base">How was this alert fulfilled?</Label>
-              <Select value={fulfillmentSource} onValueChange={setFulfillmentSource}>
-                <SelectTrigger className="bg-white/5 border-white/20 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 text-white border-gray-700">
-                  <SelectItem value="registered_donors">Registered Donor(s) from our platform</SelectItem>
-                  <SelectItem value="external_donor">External Donor (not registered)</SelectItem>
-                  <SelectItem value="hospital_bloodbank">Nearby Hospital/Blood Bank</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Registered Donors Selection */}
-            {fulfillmentSource === "registered_donors" && (
-              <div className="space-y-3">
-                <Label className="text-white text-base">Select donor(s) who donated:</Label>
-                <div className="bg-white/5 border border-white/20 rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <p className="text-gray-400 text-sm mb-2">
-                    Note: Please check the alert details page to see all donors who responded
-                  </p>
-                  <p className="text-blue-300 text-sm">
-                    Showing mock donors - integrate with real donor responses from the alert
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* External Donor */}
-            {fulfillmentSource === "external_donor" && (
-              <div className="space-y-3">
-                <Label className="text-white text-base">External Donor Email</Label>
-                <Input
-                  type="email"
-                  placeholder="donor@example.com"
-                  value={externalDonorEmail}
-                  onChange={(e) => setExternalDonorEmail(e.target.value)}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-gray-400"
-                />
-                <p className="text-gray-400 text-sm">
-                  We'll send a thank you email to this donor
-                </p>
-              </div>
-            )}
-
-            {/* Hospital/Blood Bank */}
-            {fulfillmentSource === "hospital_bloodbank" && (
-              <div className="space-y-3">
-                <Label className="text-white text-base">Hospital/Blood Bank Details</Label>
-                <Textarea
-                  placeholder="Enter hospital name, location, contact person, etc."
-                  value={otherDetails}
-                  onChange={(e) => setOtherDetails(e.target.value)}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-gray-400 min-h-[100px]"
-                />
-              </div>
-            )}
-
-            {/* Other */}
-            {fulfillmentSource === "other" && (
-              <div className="space-y-3">
-                <Label className="text-white text-base">Please provide details</Label>
-                <Textarea
-                  placeholder="Describe how the alert was fulfilled..."
-                  value={otherDetails}
-                  onChange={(e) => setOtherDetails(e.target.value)}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-gray-400 min-h-[100px]"
-                />
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowCloseAlertModal(false)}
-                disabled={isClosingAlert}
-                className="flex-1 border-white/20 hover:bg-white/20 text-white disabled:opacity-50"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCloseAlert}
-                disabled={isClosingAlert}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 flex items-center justify-center"
-              >
-                {isClosingAlert ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Closing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Close Alert
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </GradientBackground>
   );
 }

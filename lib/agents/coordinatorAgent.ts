@@ -1,7 +1,10 @@
 import { db } from "@/db";
 import { AgentType } from "@prisma/client";
 import { publishEvent } from "./eventBus";
-import { sendDonorSelectedEmail, sendDonorNotSelectedEmail } from "../actions/mails.actions";
+import {
+  sendDonorSelectedEmail,
+  sendDonorNotSelectedEmail,
+} from "../actions/mails.actions";
 import { calculateDistance } from "./donorAgent";
 import { reasonAboutDonorSelection } from "./llmReasoning";
 import { getHistoricalPatterns, getTrafficConditions } from "./outcomeTracking";
@@ -107,7 +110,12 @@ export async function processDonorResponse(
       await db.alertResponse.update({
         where: { id: existingAlertResponse.id },
         data: {
-          status: responseData.status === "accepted" ? "CONFIRMED" : responseData.status === "declined" ? "DECLINED" : "PENDING",
+          status:
+            responseData.status === "accepted"
+              ? "CONFIRMED"
+              : responseData.status === "declined"
+              ? "DECLINED"
+              : "PENDING",
           confirmed: responseData.status === "accepted",
         },
       });
@@ -117,7 +125,12 @@ export async function processDonorResponse(
         data: {
           alertId: responseData.request_id,
           donorId: responseData.donor_id,
-          status: responseData.status === "accepted" ? "CONFIRMED" : responseData.status === "declined" ? "DECLINED" : "PENDING",
+          status:
+            responseData.status === "accepted"
+              ? "CONFIRMED"
+              : responseData.status === "declined"
+              ? "DECLINED"
+              : "PENDING",
           confirmed: responseData.status === "accepted",
         },
       });
@@ -148,7 +161,11 @@ export async function processDonorResponse(
           donor_id: responseData.donor_id,
           status: responseData.status,
           response_time_ms: responseData.response_time,
-          reasoning: `Donor ${responseData.status} the request. Response time: ${Math.floor(responseData.response_time / 1000)}s`,
+          reasoning: `Donor ${
+            responseData.status
+          } the request. Response time: ${Math.floor(
+            responseData.response_time / 1000
+          )}s`,
         },
         confidence: 1.0,
       },
@@ -159,7 +176,7 @@ export async function processDonorResponse(
       console.log(
         `[CoordinatorAgent] Donor accepted. Sending hospital details...`
       );
-      
+
       // Get alert and hospital details
       const alert = await db.alert.findUnique({
         where: { id: responseData.request_id },
@@ -170,7 +187,7 @@ export async function processDonorResponse(
         const donor = responseHistory.donor;
         const hospital = alert.hospital;
         const directionsUrl = `https://maps.google.com/?q=${hospital.latitude},${hospital.longitude}`;
-        
+
         // Calculate distance and ETA
         const distance_km = calculateDistance(
           parseFloat(hospital.latitude || "0"),
@@ -191,14 +208,16 @@ export async function processDonorResponse(
           matchScore: 100, // All accepting donors are welcomed
           directionsUrl,
         });
-        
-        console.log(`[CoordinatorAgent] Hospital details sent to ${donor.firstName} ${donor.lastName}`);
+
+        console.log(
+          `[CoordinatorAgent] Hospital details sent to ${donor.firstName} ${donor.lastName}`
+        );
 
         // Update alert status to MATCHED if this is the first acceptance
         const currentAlert = await db.alert.findUnique({
           where: { id: responseData.request_id },
         });
-        
+
         if (currentAlert && currentAlert.status === "PENDING") {
           await db.alert.update({
             where: { id: responseData.request_id },
@@ -221,15 +240,15 @@ export async function processDonorResponse(
 /**
  * Select the optimal donor match from all accepted donors
  */
-export async function selectOptimalMatch(
-  requestId: string
-): Promise<{
+export async function selectOptimalMatch(requestId: string): Promise<{
   success: boolean;
   selectedDonor?: MatchedDonor;
   error?: string;
 }> {
   try {
-    console.log(`[CoordinatorAgent] Selecting optimal match for request: ${requestId}`);
+    console.log(
+      `[CoordinatorAgent] Selecting optimal match for request: ${requestId}`
+    );
 
     // 1. Check if already matched
     const workflowState = await db.workflowState.findUnique({
@@ -241,7 +260,9 @@ export async function selectOptimalMatch(
     }
 
     if (workflowState.status === "fulfilled") {
-      console.log(`[CoordinatorAgent] Request already in ${workflowState.status} state`);
+      console.log(
+        `[CoordinatorAgent] Request already in ${workflowState.status} state`
+      );
       return { success: false, error: "Request already processed" };
     }
 
@@ -249,7 +270,9 @@ export async function selectOptimalMatch(
     if (workflowState.status === "matching") {
       const metadata = workflowState.metadata as any;
       if (metadata?.matched_donor_id) {
-        console.log(`[CoordinatorAgent] Donor already selected: ${metadata.matched_donor_id}`);
+        console.log(
+          `[CoordinatorAgent] Donor already selected: ${metadata.matched_donor_id}`
+        );
         return { success: false, error: "Donor already selected" };
       }
     }
@@ -266,11 +289,15 @@ export async function selectOptimalMatch(
     });
 
     if (acceptedResponses.length === 0) {
-      console.log(`[CoordinatorAgent] No donors accepted yet for request: ${requestId}`);
+      console.log(
+        `[CoordinatorAgent] No donors accepted yet for request: ${requestId}`
+      );
       return { success: false, error: "No donors accepted" };
     }
 
-    console.log(`[CoordinatorAgent] Found ${acceptedResponses.length} accepted donor(s)`);
+    console.log(
+      `[CoordinatorAgent] Found ${acceptedResponses.length} accepted donor(s)`
+    );
 
     // 3. Get alert details
     const alert = await db.alert.findUnique({
@@ -314,7 +341,8 @@ export async function selectOptimalMatch(
       let health_score = 100;
       if (isNaN(hemoglobin)) health_score = 70;
       else if (donor.gender === "male" && hemoglobin < 14.0) health_score = 80;
-      else if (donor.gender === "female" && hemoglobin < 13.0) health_score = 80;
+      else if (donor.gender === "female" && hemoglobin < 13.0)
+        health_score = 80;
 
       // Calculate match score
       const match_score = calculateMatchScore(
@@ -337,8 +365,10 @@ export async function selectOptimalMatch(
     }
 
     // 5. Use LLM reasoning to select optimal donor (AGENTIC AI)
-    console.log(`[CoordinatorAgent] Using LLM reasoning to select optimal donor...`);
-    
+    console.log(
+      `[CoordinatorAgent] Using LLM reasoning to select optimal donor...`
+    );
+
     let selectedDonor: MatchedDonor;
     let llmReasoning: string;
     let confidence: number;
@@ -347,38 +377,44 @@ export async function selectOptimalMatch(
 
     try {
       // Get historical patterns for context
-      const historicalPatterns = await getHistoricalPatterns(AgentType.COORDINATOR, {
-        bloodType: alert.bloodType,
-        urgency: alert.urgency,
-      });
+      const historicalPatterns = await getHistoricalPatterns(
+        AgentType.COORDINATOR,
+        {
+          bloodType: alert.bloodType,
+          urgency: alert.urgency,
+        }
+      );
 
       // Get traffic conditions
       const timeOfDay = new Date().toLocaleTimeString();
       const trafficConditions = getTrafficConditions(timeOfDay);
 
       // Use LLM to reason about selection
-      const llmResult = await reasonAboutDonorSelection(
-        scoredDonors,
-        alert,
-        {
-          urgency: alert.urgency || 'medium',
-          timeOfDay,
-          historicalPatterns,
-          trafficConditions,
-        }
-      );
+      const llmResult = await reasonAboutDonorSelection(scoredDonors, alert, {
+        urgency: alert.urgency || "medium",
+        timeOfDay,
+        historicalPatterns,
+        trafficConditions,
+      });
 
       selectedDonor = llmResult.selectedDonor;
       llmReasoning = llmResult.reasoning;
       confidence = llmResult.confidence;
-      rejectedDonors = scoredDonors.filter(d => d.donor_id !== selectedDonor.donor_id);
+      rejectedDonors = scoredDonors.filter(
+        (d) => d.donor_id !== selectedDonor.donor_id
+      );
       llmUsed = true;
 
       console.log(
-        `[CoordinatorAgent] LLM selected: ${selectedDonor.donor_name} (confidence: ${(confidence * 100).toFixed(1)}%)`
+        `[CoordinatorAgent] LLM selected: ${
+          selectedDonor.donor_name
+        } (confidence: ${(confidence * 100).toFixed(1)}%)`
       );
     } catch (error) {
-      console.warn(`[CoordinatorAgent] LLM reasoning failed, using algorithmic fallback:`, error);
+      console.warn(
+        `[CoordinatorAgent] LLM reasoning failed, using algorithmic fallback:`,
+        error
+      );
       // Fallback to algorithmic selection
       scoredDonors.sort((a, b) => b.match_score - a.match_score);
       selectedDonor = scoredDonors[0];
@@ -431,7 +467,13 @@ export async function selectOptimalMatch(
             donor_id: d.donor_id,
             match_score: d.match_score,
           })),
-          reasoning: llmReasoning || `Selected ${selectedDonor.donor_name} due to highest match score (${selectedDonor.match_score}/100). ETA: ${selectedDonor.eta_minutes} min, Distance: ${selectedDonor.distance_km.toFixed(1)} km.`,
+          reasoning:
+            llmReasoning ||
+            `Selected ${selectedDonor.donor_name} due to highest match score (${
+              selectedDonor.match_score
+            }/100). ETA: ${
+              selectedDonor.eta_minutes
+            } min, Distance: ${selectedDonor.distance_km.toFixed(1)} km.`,
           llm_used: llmUsed,
           llm_confidence: confidence,
           total_accepted: scoredDonors.length,
@@ -455,7 +497,9 @@ export async function selectOptimalMatch(
       matchScore: selectedDonor.match_score,
       directionsUrl,
     });
-    console.log(`[CoordinatorAgent] Confirmation email sent to ${selectedDonor.donor_name}`);
+    console.log(
+      `[CoordinatorAgent] Confirmation email sent to ${selectedDonor.donor_name}`
+    );
 
     // 9. Send "not selected" email to rejected donors
     for (const rejectedDonor of rejectedDonors) {
@@ -467,7 +511,9 @@ export async function selectOptimalMatch(
     }
 
     if (rejectedDonors.length > 0) {
-      console.log(`[CoordinatorAgent] Sent "not selected" emails to ${rejectedDonors.length} rejected donor(s)`);
+      console.log(
+        `[CoordinatorAgent] Sent "not selected" emails to ${rejectedDonors.length} rejected donor(s)`
+      );
     }
 
     // 10. Update alert status
@@ -487,9 +533,7 @@ export async function selectOptimalMatch(
  * Handle timeout scenario: No donors accepted within response window
  * Fallback: Trigger Inventory Agent
  */
-export async function handleNoResponseTimeout(
-  requestId: string
-): Promise<{
+export async function handleNoResponseTimeout(requestId: string): Promise<{
   success: boolean;
   message?: string;
   error?: string;
@@ -518,10 +562,9 @@ export async function handleNoResponseTimeout(
         status: "pending",
         currentStep: "no_donor_response_timeout",
         metadata: {
-          ...(
-            (await db.workflowState.findUnique({ where: { requestId } }))
-              ?.metadata as object
-          ),
+          ...((
+            await db.workflowState.findUnique({ where: { requestId } })
+          )?.metadata as object),
           timeout_at: new Date().toISOString(),
           fallback_triggered: true,
         },
@@ -544,18 +587,27 @@ export async function handleNoResponseTimeout(
     });
 
     // 4. Trigger Inventory Agent
-    console.log(`[CoordinatorAgent] Triggering Inventory Agent for request: ${requestId}`);
+    console.log(
+      `[CoordinatorAgent] Triggering Inventory Agent for request: ${requestId}`
+    );
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       fetch(`${baseUrl}/api/agents/inventory`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: requestId })
-      }).catch(err => {
-        console.error("[CoordinatorAgent] Failed to trigger Inventory Agent:", err);
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request_id: requestId }),
+      }).catch((err) => {
+        console.error(
+          "[CoordinatorAgent] Failed to trigger Inventory Agent:",
+          err
+        );
       });
     } catch (error) {
-      console.error("[CoordinatorAgent] Error triggering Inventory Agent:", error);
+      console.error(
+        "[CoordinatorAgent] Error triggering Inventory Agent:",
+        error
+      );
     }
 
     return {
@@ -604,10 +656,9 @@ export async function confirmDonorArrival(
         status: "fulfilled",
         currentStep: "completed",
         metadata: {
-          ...(
-            (await db.workflowState.findUnique({ where: { requestId } }))
-              ?.metadata as object
-          ),
+          ...((
+            await db.workflowState.findUnique({ where: { requestId } })
+          )?.metadata as object),
           fulfilled_at: new Date().toISOString(),
         },
       },
@@ -633,12 +684,16 @@ export async function confirmDonorArrival(
       },
     });
 
-    console.log(`[CoordinatorAgent] Request ${requestId} fulfilled successfully`);
+    console.log(
+      `[CoordinatorAgent] Request ${requestId} fulfilled successfully`
+    );
 
-    return { success: true, message: "Donor arrival confirmed. Request fulfilled." };
+    return {
+      success: true,
+      message: "Donor arrival confirmed. Request fulfilled.",
+    };
   } catch (error) {
     console.error("[CoordinatorAgent] Error confirming arrival:", error);
     return { success: false, error: String(error) };
   }
 }
-

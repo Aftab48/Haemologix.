@@ -2,7 +2,7 @@ interface ReasoningRequest {
   context: any;
   prompt: string;
   temperature?: number;
-  responseFormat?: 'json' | 'text';
+  responseFormat?: "json" | "text";
   systemPrompt?: string;
 }
 
@@ -22,9 +22,9 @@ interface LLMConfig {
 
 // OpenRouter Configuration
 const LLM_CONFIG: LLMConfig = {
-  model: 'anthropic/claude-sonnet-4.5',
-  baseUrl: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY || '',
+  model: "anthropic/claude-sonnet-4.5",
+  baseUrl: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY || "",
   maxTokens: 150000,
 };
 
@@ -35,41 +35,43 @@ async function callLLM(
   prompt: string,
   options: {
     temperature?: number;
-    responseFormat?: 'json' | 'text';
+    responseFormat?: "json" | "text";
     systemPrompt?: string;
   } = {}
 ): Promise<string> {
   if (!LLM_CONFIG.apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
+    throw new Error("OPENROUTER_API_KEY not configured");
   }
 
-  const systemPrompt = options.systemPrompt || 
-    'You are an intelligent blood donation coordinator agent. Analyze scenarios carefully, consider all factors, and provide clear, reasoned decisions with explanations.';
+  const systemPrompt =
+    options.systemPrompt ||
+    "You are an intelligent blood donation coordinator agent. Analyze scenarios carefully, consider all factors, and provide clear, reasoned decisions with explanations.";
 
   const response = await fetch(`${LLM_CONFIG.baseUrl}/chat/completions`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Authorization': `Bearer ${LLM_CONFIG.apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      'X-Title': 'Haemologix Agentic AI',
+      Authorization: `Bearer ${LLM_CONFIG.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer":
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      "X-Title": "Haemologix Agentic AI",
     },
     body: JSON.stringify({
       model: LLM_CONFIG.model,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content: systemPrompt,
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
       temperature: options.temperature ?? 0.3,
       max_tokens: LLM_CONFIG.maxTokens,
-      ...(options.responseFormat === 'json' && {
-        response_format: { type: 'json_object' },
+      ...(options.responseFormat === "json" && {
+        response_format: { type: "json_object" },
       }),
     }),
   });
@@ -90,8 +92,8 @@ export async function reasonAboutDecision(
   request: ReasoningRequest
 ): Promise<ReasoningResponse> {
   try {
-    console.log('[LLM Reasoning] Processing decision with Claude 4.5...');
-    
+    console.log("[LLM Reasoning] Processing decision with Claude 4.5...");
+
     const response = await callLLM(request.prompt, {
       temperature: request.temperature,
       responseFormat: request.responseFormat,
@@ -99,7 +101,7 @@ export async function reasonAboutDecision(
     });
 
     let parsed: any;
-    if (request.responseFormat === 'json') {
+    if (request.responseFormat === "json") {
       try {
         parsed = JSON.parse(response);
       } catch (e) {
@@ -114,16 +116,18 @@ export async function reasonAboutDecision(
       reasoning: parsed.reasoning || response,
       decision: parsed.decision || parsed,
       confidence: parsed.confidence || 0.8,
-      model_used: 'claude-4.5',
+      model_used: "claude-4.5",
     };
   } catch (error) {
-    console.error('[LLM Reasoning] Error:', error);
+    console.error("[LLM Reasoning] Error:", error);
     // Fallback to basic reasoning if LLM fails
     return {
-      reasoning: `LLM reasoning unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Using algorithmic fallback.`,
+      reasoning: `LLM reasoning unavailable: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }. Using algorithmic fallback.`,
       decision: null,
       confidence: 0.5,
-      model_used: 'fallback',
+      model_used: "fallback",
     };
   }
 }
@@ -149,15 +153,19 @@ export async function reasonAboutDonorSelection(
   const prompt = `You are a blood donation coordinator agent. Analyze this scenario and select the optimal donor:
 
 CANDIDATES:
-${candidates.map((d, i) => `
-${i + 1}. ${d.donor_name || d.firstName + ' ' + d.lastName}
+${candidates
+  .map(
+    (d, i) => `
+${i + 1}. ${d.donor_name || d.firstName + " " + d.lastName}
    - Distance: ${d.distance_km}km
    - ETA: ${d.eta_minutes} minutes
    - Match Score: ${d.match_score || d.score}/100
    - Reliability: ${((d.reliability_rate || 0.5) * 100).toFixed(1)}%
-   - Health Status: ${d.health_score || 'N/A'}/100
-   - Last Donation: ${d.lastDonationDays || 'N/A'} days ago
-`).join('\n')}
+   - Health Status: ${d.health_score || "N/A"}/100
+   - Last Donation: ${d.lastDonationDays || "N/A"} days ago
+`
+  )
+  .join("\n")}
 
 ALERT CONTEXT:
 - Blood Type: ${alert.bloodType}
@@ -165,9 +173,17 @@ ALERT CONTEXT:
 - Units Needed: ${alert.unitsNeeded || 1}
 - Time: ${context.timeOfDay}
 - Location: ${alert.latitude}, ${alert.longitude}
-${context.trafficConditions ? `- Traffic: ${context.trafficConditions}` : ''}
+${context.trafficConditions ? `- Traffic: ${context.trafficConditions}` : ""}
 
-${context.historicalPatterns ? `HISTORICAL PATTERNS:\n${JSON.stringify(context.historicalPatterns, null, 2)}` : ''}
+${
+  context.historicalPatterns
+    ? `HISTORICAL PATTERNS:\n${JSON.stringify(
+        context.historicalPatterns,
+        null,
+        2
+      )}`
+    : ""
+}
 
 ANALYSIS REQUIRED:
 Consider all factors holistically:
@@ -198,34 +214,39 @@ Respond in JSON format:
     context: { candidates, alert, context },
     prompt,
     temperature: 0.3,
-    responseFormat: 'json',
-    systemPrompt: 'You are an expert blood donation coordinator with years of experience. You make life-or-death decisions and must consider all factors carefully.',
+    responseFormat: "json",
+    systemPrompt:
+      "You are an expert blood donation coordinator with years of experience. You make life-or-death decisions and must consider all factors carefully.",
   });
 
-  const decision = result.decision || (typeof result.reasoning === 'string' ? JSON.parse(result.reasoning) : result.reasoning);
-  
+  const decision =
+    result.decision ||
+    (typeof result.reasoning === "string"
+      ? JSON.parse(result.reasoning)
+      : result.reasoning);
+
   return {
     selectedDonor: candidates[decision.selected_index || 0],
     reasoning: decision.reasoning || result.reasoning,
     confidence: decision.confidence || result.confidence || 0.8,
-    alternatives: decision.alternative_considerations ? [decision.alternative_considerations] : undefined,
+    alternatives: decision.alternative_considerations
+      ? [decision.alternative_considerations]
+      : undefined,
   };
 }
 
 /**
  * Reason about urgency assessment
  */
-export async function reasonAboutUrgency(
-  context: {
-    bloodType: string;
-    currentUnits: number;
-    daysRemaining: number;
-    dailyUsage: number;
-    hospitalContext?: any;
-    timeOfDay?: string;
-  }
-): Promise<{
-  urgency: 'low' | 'medium' | 'high' | 'critical';
+export async function reasonAboutUrgency(context: {
+  bloodType: string;
+  currentUnits: number;
+  daysRemaining: number;
+  dailyUsage: number;
+  hospitalContext?: any;
+  timeOfDay?: string;
+}): Promise<{
+  urgency: "low" | "medium" | "high" | "critical";
   reasoning: string;
   priorityScore: number;
   recommendedAction: string;
@@ -239,7 +260,11 @@ CONTEXT:
 - Daily Usage: ${context.dailyUsage}
 - Time: ${context.timeOfDay || new Date().toLocaleTimeString()}
 
-${context.hospitalContext ? `HOSPITAL CONTEXT:\n${JSON.stringify(context.hospitalContext, null, 2)}` : ''}
+${
+  context.hospitalContext
+    ? `HOSPITAL CONTEXT:\n${JSON.stringify(context.hospitalContext, null, 2)}`
+    : ""
+}
 
 BLOOD TYPE RARITY:
 - O-: Universal donor, extremely critical
@@ -272,16 +297,16 @@ Respond in JSON:
     context,
     prompt,
     temperature: 0.2, // Lower temperature for more consistent urgency assessment
-    responseFormat: 'json',
+    responseFormat: "json",
   });
 
   const decision = result.decision || JSON.parse(result.reasoning);
-  
+
   return {
-    urgency: decision.urgency || 'medium',
+    urgency: decision.urgency || "medium",
     reasoning: decision.reasoning || result.reasoning,
     priorityScore: decision.priority_score || 50,
-    recommendedAction: decision.recommended_action || 'Monitor and prepare',
+    recommendedAction: decision.recommended_action || "Monitor and prepare",
   };
 }
 
@@ -305,7 +330,10 @@ export async function reasonAboutInventorySelection(
   const prompt = `Select the optimal blood inventory source:
 
 AVAILABLE SOURCES:
-${rankedUnits.slice(0, 10).map((unit, i) => `
+${rankedUnits
+  .slice(0, 10)
+  .map(
+    (unit, i) => `
 ${i + 1}. ${unit.hospital_name}
    - Distance: ${unit.distance_km}km
    - Units Available: ${unit.units_available}
@@ -314,13 +342,15 @@ ${i + 1}. ${unit.hospital_name}
    - Expiry Score: ${unit.scores.expiry}/100
    - Quantity Score: ${unit.scores.quantity}/100
    - Final Score: ${unit.scores.final}/100
-`).join('\n')}
+`
+  )
+  .join("\n")}
 
 REQUEST CONTEXT:
 - Blood Type: ${request.bloodType}
 - Units Needed: ${request.unitsNeeded}
 - Urgency: ${request.urgency}
-- Requesting Hospital: ${request.requestingHospital?.hospitalName || 'Unknown'}
+- Requesting Hospital: ${request.requestingHospital?.hospitalName || "Unknown"}
 
 Consider:
 1. Urgency (CRITICAL = prioritize speed over cost, LOW = can optimize for cost)
@@ -347,35 +377,33 @@ Respond in JSON:
     context: { rankedUnits, request },
     prompt,
     temperature: 0.3,
-    responseFormat: 'json',
+    responseFormat: "json",
   });
 
   const decision = result.decision || JSON.parse(result.reasoning);
-  
+
   return {
     selectedSource: rankedUnits[decision.selected_index || 0],
     reasoning: decision.reasoning || result.reasoning,
     confidence: decision.confidence || result.confidence || 0.8,
-    transportStrategy: decision.transport_strategy || 'Standard courier',
+    transportStrategy: decision.transport_strategy || "Standard courier",
   };
 }
 
 /**
  * Reason about transport method and route
  */
-export async function reasonAboutTransport(
-  context: {
-    fromHospital: any;
-    toHospital: any;
-    distanceKm: number;
-    urgency: string;
-    bloodType: string;
-    units: number;
-    timeOfDay: string;
-    trafficConditions?: string;
-  }
-): Promise<{
-  method: 'ambulance' | 'courier' | 'scheduled';
+export async function reasonAboutTransport(context: {
+  fromHospital: any;
+  toHospital: any;
+  distanceKm: number;
+  urgency: string;
+  bloodType: string;
+  units: number;
+  timeOfDay: string;
+  trafficConditions?: string;
+}): Promise<{
+  method: "ambulance" | "courier" | "scheduled";
   reasoning: string;
   etaMinutes: number;
   coldChainCompliant: boolean;
@@ -384,14 +412,14 @@ export async function reasonAboutTransport(
   const prompt = `Plan optimal transport for blood units:
 
 TRANSPORT CONTEXT:
-- From: ${context.fromHospital?.hospitalName || 'Source Hospital'}
-- To: ${context.toHospital?.hospitalName || 'Destination Hospital'}
+- From: ${context.fromHospital?.hospitalName || "Source Hospital"}
+- To: ${context.toHospital?.hospitalName || "Destination Hospital"}
 - Distance: ${context.distanceKm}km
 - Urgency: ${context.urgency}
 - Blood Type: ${context.bloodType}
 - Units: ${context.units}
 - Time: ${context.timeOfDay}
-${context.trafficConditions ? `- Traffic: ${context.trafficConditions}` : ''}
+${context.trafficConditions ? `- Traffic: ${context.trafficConditions}` : ""}
 
 TRANSPORT OPTIONS:
 1. Ambulance: Fastest (<15km, CRITICAL only), can use sirens, 30% faster
@@ -424,32 +452,30 @@ Respond in JSON:
     context,
     prompt,
     temperature: 0.2,
-    responseFormat: 'json',
+    responseFormat: "json",
   });
 
   const decision = result.decision || JSON.parse(result.reasoning);
-  
+
   return {
-    method: decision.method || 'courier',
+    method: decision.method || "courier",
     reasoning: decision.reasoning || result.reasoning,
     etaMinutes: decision.eta_minutes || 60,
     coldChainCompliant: decision.cold_chain_compliant !== false,
-    routeOptimization: decision.route_optimization || 'Standard route',
+    routeOptimization: decision.route_optimization || "Standard route",
   };
 }
 
 /**
  * Reason about donor matching strategy
  */
-export async function reasonAboutDonorMatchingStrategy(
-  context: {
-    eligibleDonors: number;
-    urgency: string;
-    bloodType: string;
-    searchRadius: number;
-    historicalResponseRate?: number;
-  }
-): Promise<{
+export async function reasonAboutDonorMatchingStrategy(context: {
+  eligibleDonors: number;
+  urgency: string;
+  bloodType: string;
+  searchRadius: number;
+  historicalResponseRate?: number;
+}): Promise<{
   shouldTriggerInventory: boolean;
   reasoning: string;
   notificationStrategy: string;
@@ -462,7 +488,13 @@ CONTEXT:
 - Urgency: ${context.urgency}
 - Blood Type: ${context.bloodType}
 - Search Radius: ${context.searchRadius}km
-${context.historicalResponseRate ? `- Historical Response Rate: ${(context.historicalResponseRate * 100).toFixed(1)}%` : ''}
+${
+  context.historicalResponseRate
+    ? `- Historical Response Rate: ${(
+        context.historicalResponseRate * 100
+      ).toFixed(1)}%`
+    : ""
+}
 
 STRATEGY DECISIONS:
 1. Should we trigger inventory search in parallel? (Dual strategy)
@@ -494,15 +526,16 @@ Respond in JSON:
     context,
     prompt,
     temperature: 0.3,
-    responseFormat: 'json',
+    responseFormat: "json",
   });
 
   const decision = result.decision || JSON.parse(result.reasoning);
-  
+
   return {
     shouldTriggerInventory: decision.should_trigger_inventory || false,
     reasoning: decision.reasoning || result.reasoning,
-    notificationStrategy: decision.notification_strategy || 'Notify top 10 donors',
+    notificationStrategy:
+      decision.notification_strategy || "Notify top 10 donors",
     expectedResponseRate: decision.expected_response_rate || 0.3,
   };
 }
@@ -518,7 +551,7 @@ export async function reasonAboutEligibility(
   },
   donor: any
 ): Promise<{
-  finalDecision: 'approved' | 'rejected' | 'needs_review';
+  finalDecision: "approved" | "rejected" | "needs_review";
   reasoning: string;
   edgeCases: string[];
   recommendations: string[];
@@ -527,20 +560,35 @@ export async function reasonAboutEligibility(
   const prompt = `Analyze donor eligibility decision:
 
 DONOR PROFILE:
-- Age: ${new Date().getFullYear() - new Date(donor.dateOfBirth).getFullYear()} years
+- Age: ${
+    new Date().getFullYear() - new Date(donor.dateOfBirth).getFullYear()
+  } years
 - Weight: ${donor.weight} kg
 - BMI: ${donor.bmi}
 - Hemoglobin: ${donor.hemoglobin} g/dL
 - Gender: ${donor.gender}
-- Last Donation: ${donor.lastDonation ? new Date(donor.lastDonation).toLocaleDateString() : 'Never'}
+- Last Donation: ${
+    donor.lastDonation
+      ? new Date(donor.lastDonation).toLocaleDateString()
+      : "Never"
+  }
 
 ELIGIBILITY CHECK RESULTS:
-- Overall Status: ${eligibilityResult.passed ? 'PASSED' : 'FAILED'}
+- Overall Status: ${eligibilityResult.passed ? "PASSED" : "FAILED"}
 - Failed Criteria: ${eligibilityResult.failedCriteria.length}
-${eligibilityResult.failedCriteria.map(c => `  - ${c.criterion}: ${c.value} (Required: ${c.required})`).join('\n')}
+${eligibilityResult.failedCriteria
+  .map((c) => `  - ${c.criterion}: ${c.value} (Required: ${c.required})`)
+  .join("\n")}
 
 ALL CRITERIA:
-${eligibilityResult.allCriteria.map(c => `  - ${c.criterion}: ${c.value} (Required: ${c.required}) - ${c.passed ? 'PASS' : 'FAIL'}`).join('\n')}
+${eligibilityResult.allCriteria
+  .map(
+    (c) =>
+      `  - ${c.criterion}: ${c.value} (Required: ${c.required}) - ${
+        c.passed ? "PASS" : "FAIL"
+      }`
+  )
+  .join("\n")}
 
 ANALYSIS REQUIRED:
 1. Are there any edge cases? (e.g., BMI 18.4 vs 18.5, hemoglobin 12.4 vs 12.5)
@@ -570,18 +618,20 @@ Respond in JSON:
     context: { eligibilityResult, donor },
     prompt,
     temperature: 0.2, // Low temperature for consistent medical decisions
-    responseFormat: 'json',
-    systemPrompt: 'You are a medical eligibility expert for blood donation. You must prioritize safety while providing helpful guidance. Never override hard medical requirements, but identify edge cases that may need human review.',
+    responseFormat: "json",
+    systemPrompt:
+      "You are a medical eligibility expert for blood donation. You must prioritize safety while providing helpful guidance. Never override hard medical requirements, but identify edge cases that may need human review.",
   });
 
   const decision = result.decision || JSON.parse(result.reasoning);
-  
+
   return {
-    finalDecision: decision.final_decision || (eligibilityResult.passed ? 'approved' : 'rejected'),
+    finalDecision:
+      decision.final_decision ||
+      (eligibilityResult.passed ? "approved" : "rejected"),
     reasoning: decision.reasoning || result.reasoning,
     edgeCases: decision.edge_cases || [],
     recommendations: decision.recommendations || [],
     confidence: decision.confidence || result.confidence || 0.9,
   };
 }
- 

@@ -2,6 +2,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "HaemoLogix - Real-Time Blood Donation Platform",
@@ -18,6 +19,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html className="scroll-smooth" lang="en">
         <body className="font-dm-sans antialiased">
+          <Analytics />
           {children}
         </body>
       </html>

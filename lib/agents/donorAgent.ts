@@ -44,14 +44,16 @@ const BLOOD_TYPE_COMPATIBILITY: Record<string, string[]> = {
  */
 export function getCompatibleDonorTypes(requiredBloodType: string): string[] {
   const compatibleDonors: string[] = [];
-  
+
   // Check each donor type to see if it can donate to the required type
-  for (const [donorType, recipientTypes] of Object.entries(BLOOD_TYPE_COMPATIBILITY)) {
+  for (const [donorType, recipientTypes] of Object.entries(
+    BLOOD_TYPE_COMPATIBILITY
+  )) {
     if (recipientTypes.includes(requiredBloodType)) {
       compatibleDonors.push(donorType);
     }
   }
-  
+
   return compatibleDonors;
 }
 
@@ -171,7 +173,7 @@ export async function findAndRankDonors(
 ): Promise<RankedDonor[]> {
   // Get all compatible donor blood types (e.g., for A+ → [O-, O+, A-, A+])
   const compatibleDonorTypes = getCompatibleDonorTypes(bloodType);
-  
+
   console.log(
     `[DonorAgent] Searching for ${bloodType} compatible donors within ${searchRadiusKm}km...`
   );
@@ -190,7 +192,11 @@ export async function findAndRankDonors(
   });
 
   console.log(
-    `[DonorAgent] Found ${allDonors.length} approved donors with compatible blood types (${compatibleDonorTypes.join(", ")})`
+    `[DonorAgent] Found ${
+      allDonors.length
+    } approved donors with compatible blood types (${compatibleDonorTypes.join(
+      ", "
+    )})`
   );
 
   const eligibleDonors: Array<{
@@ -203,7 +209,9 @@ export async function findAndRankDonors(
     // Blood type compatibility already filtered at database level
     // Double-check for safety (should always pass now)
     if (!isBloodTypeCompatible(donor.bloodGroup, bloodType)) {
-      console.warn(`[DonorAgent] Unexpected: Donor ${donor.id} with blood type ${donor.bloodGroup} passed DB filter but is incompatible with ${bloodType}`);
+      console.warn(
+        `[DonorAgent] Unexpected: Donor ${donor.id} with blood type ${donor.bloodGroup} passed DB filter but is incompatible with ${bloodType}`
+      );
       continue;
     }
 
@@ -245,17 +253,11 @@ export async function findAndRankDonors(
         : 10; // Default 10 min
 
     // Calculate scores
-    const scores = scoreDonor(
-      donor,
-      distance,
-      searchRadiusKm,
-      urgency,
-      {
-        totalAlerts,
-        accepted,
-        avgResponseTime,
-      }
-    );
+    const scores = scoreDonor(donor, distance, searchRadiusKm, urgency, {
+      totalAlerts,
+      accepted,
+      avgResponseTime,
+    });
 
     eligibleDonors.push({
       donor,
@@ -335,8 +337,10 @@ export async function processShortageEvent(eventId: string): Promise<{
     let llmUsed: boolean = false;
 
     try {
-      console.log("[DonorAgent] Using LLM reasoning to determine matching strategy...");
-      
+      console.log(
+        "[DonorAgent] Using LLM reasoning to determine matching strategy..."
+      );
+
       const historicalPatterns = await getHistoricalPatterns(AgentType.DONOR, {
         bloodType,
         urgency,
@@ -344,7 +348,7 @@ export async function processShortageEvent(eventId: string): Promise<{
 
       const strategyResult = await reasonAboutDonorMatchingStrategy({
         eligibleDonors: rankedDonors.length,
-        urgency: urgency || 'medium',
+        urgency: urgency || "medium",
         bloodType,
         searchRadius,
         historicalResponseRate: historicalPatterns.donorResponseRate,
@@ -356,9 +360,18 @@ export async function processShortageEvent(eventId: string): Promise<{
       insufficientReason = strategyResult.reasoning;
       llmUsed = true;
 
-      console.log(`[DonorAgent] LLM strategy: ${shouldTriggerInventory ? 'Dual strategy (donors + inventory)' : 'Donor-only strategy'}`);
+      console.log(
+        `[DonorAgent] LLM strategy: ${
+          shouldTriggerInventory
+            ? "Dual strategy (donors + inventory)"
+            : "Donor-only strategy"
+        }`
+      );
     } catch (error) {
-      console.warn("[DonorAgent] LLM reasoning failed, using algorithmic fallback:", error);
+      console.warn(
+        "[DonorAgent] LLM reasoning failed, using algorithmic fallback:",
+        error
+      );
       // Fallback to algorithmic logic
       const urgencyLower = urgency?.toLowerCase();
       if (urgencyLower === "critical" && rankedDonors.length <= 5) {
@@ -371,13 +384,16 @@ export async function processShortageEvent(eventId: string): Promise<{
         shouldTriggerInventory = true;
         insufficientReason = `No eligible donors found for MEDIUM urgency`;
       }
-      notificationStrategy = `Notify top ${Math.min(10, rankedDonors.length)} donors`;
+      notificationStrategy = `Notify top ${Math.min(
+        10,
+        rankedDonors.length
+      )} donors`;
       llmUsed = false;
     }
 
     if (rankedDonors.length === 0) {
       console.log("[DonorAgent] No eligible donors found");
-      
+
       // Log decision
       await db.agentDecision.create({
         data: {
@@ -396,14 +412,17 @@ export async function processShortageEvent(eventId: string): Promise<{
       });
 
       // Trigger Inventory Agent immediately
-      console.log("[DonorAgent] Triggering Inventory Agent due to no eligible donors");
+      console.log(
+        "[DonorAgent] Triggering Inventory Agent due to no eligible donors"
+      );
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         fetch(`${baseUrl}/api/agents/inventory`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ request_id: requestId })
-        }).catch(err => {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId }),
+        }).catch((err) => {
           console.error("[DonorAgent] Failed to trigger Inventory Agent:", err);
         });
       } catch (error) {
@@ -415,16 +434,19 @@ export async function processShortageEvent(eventId: string): Promise<{
 
     // If insufficient donors but > 0, trigger inventory AND still notify available donors
     if (shouldTriggerInventory) {
-      console.log(`[DonorAgent] ${insufficientReason}. Triggering Inventory Agent in parallel.`);
-      
+      console.log(
+        `[DonorAgent] ${insufficientReason}. Triggering Inventory Agent in parallel.`
+      );
+
       // Trigger Inventory Agent immediately (parallel to donor notifications)
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         fetch(`${baseUrl}/api/agents/inventory`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ request_id: requestId })
-        }).catch(err => {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId }),
+        }).catch((err) => {
           console.error("[DonorAgent] Failed to trigger Inventory Agent:", err);
         });
       } catch (error) {
@@ -434,9 +456,11 @@ export async function processShortageEvent(eventId: string): Promise<{
 
     // Determine how many donors to notify (use LLM strategy if available)
     let notifyCount: number;
-    if (notificationStrategy.includes('Notify top')) {
+    if (notificationStrategy.includes("Notify top")) {
       const match = notificationStrategy.match(/Notify top (\d+)/);
-      notifyCount = match ? parseInt(match[1]) : Math.min(10, rankedDonors.length);
+      notifyCount = match
+        ? parseInt(match[1])
+        : Math.min(10, rankedDonors.length);
     } else {
       // Fallback to algorithmic calculation
       notifyCount = Math.min(
@@ -467,7 +491,8 @@ export async function processShortageEvent(eventId: string): Promise<{
       try {
         // Generate response token
         const token = `${donor.id}-${requestId}-${Date.now()}`;
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const acceptUrl = `${baseUrl}/api/donor/respond?token=${token}&status=accept`;
         const declineUrl = `${baseUrl}/api/donor/respond?token=${token}&status=decline`;
 
@@ -495,14 +520,17 @@ export async function processShortageEvent(eventId: string): Promise<{
           bloodType: bloodType,
           distance: donor.distanceKm.toFixed(1),
           urgency: urgency,
-          contactPhone: payload.metadata?.contact_phone || hospital.contactPhone,
+          contactPhone:
+            payload.metadata?.contact_phone || hospital.contactPhone,
           totalEligible: rankedDonors.length,
           donorScore: donor.scores.final,
           acceptUrl,
           declineUrl,
         });
 
-        console.log(`[DonorAgent] Email sent to ${donor.firstName} ${donor.lastName} (${donor.email})`);
+        console.log(
+          `[DonorAgent] Email sent to ${donor.firstName} ${donor.lastName} (${donor.email})`
+        );
 
         // Log notification in DonorResponseHistory
         await db.donorResponseHistory.create({
@@ -551,16 +579,28 @@ export async function processShortageEvent(eventId: string): Promise<{
             topDonors.reduce((sum, d) => sum + d.distanceKm, 0) /
             topDonors.length,
           inventory_triggered: shouldTriggerInventory,
-          insufficient_reason: shouldTriggerInventory ? insufficientReason : undefined,
-          reasoning: insufficientReason || (shouldTriggerInventory 
-            ? `${insufficientReason}. Notifying available ${topDonors.length} donor(s) AND searching inventory in parallel. Highest score: ${topDonors[0]?.scores.final.toFixed(1)}/100. Average distance: ${(
-                topDonors.reduce((sum, d) => sum + d.distanceKm, 0) /
-                topDonors.length
-              ).toFixed(1)}km.`
-            : `Selected top ${topDonors.length} donors from ${rankedDonors.length} eligible candidates. Highest score: ${topDonors[0]?.scores.final.toFixed(1)}/100. Average distance: ${(
-                topDonors.reduce((sum, d) => sum + d.distanceKm, 0) /
-                topDonors.length
-              ).toFixed(1)}km.`),
+          insufficient_reason: shouldTriggerInventory
+            ? insufficientReason
+            : undefined,
+          reasoning:
+            insufficientReason ||
+            (shouldTriggerInventory
+              ? `${insufficientReason}. Notifying available ${
+                  topDonors.length
+                } donor(s) AND searching inventory in parallel. Highest score: ${topDonors[0]?.scores.final.toFixed(
+                  1
+                )}/100. Average distance: ${(
+                  topDonors.reduce((sum, d) => sum + d.distanceKm, 0) /
+                  topDonors.length
+                ).toFixed(1)}km.`
+              : `Selected top ${topDonors.length} donors from ${
+                  rankedDonors.length
+                } eligible candidates. Highest score: ${topDonors[0]?.scores.final.toFixed(
+                  1
+                )}/100. Average distance: ${(
+                  topDonors.reduce((sum, d) => sum + d.distanceKm, 0) /
+                  topDonors.length
+                ).toFixed(1)}km.`),
           top_donors: topDonors.slice(0, 5).map((d: RankedDonor) => ({
             rank: d.rank,
             name: `${d.firstName} ${d.lastName}`,
@@ -595,4 +635,3 @@ export async function processShortageEvent(eventId: string): Promise<{
     return { success: false, donorsNotified: 0, error: String(error) };
   }
 }
-

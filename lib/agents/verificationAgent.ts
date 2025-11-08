@@ -39,7 +39,10 @@ export function checkDonorEligibility(donor: any): EligibilityCheckResult {
     criterion: "Age",
     value: age,
     required: "18-65 years",
-    reason: age < 18 ? "You must be at least 18 years old to donate blood" : "Maximum donor age is 65 years",
+    reason:
+      age < 18
+        ? "You must be at least 18 years old to donate blood"
+        : "Maximum donor age is 65 years",
     passed: age >= 18 && age <= 65,
   };
   allCriteria.push(ageCheck);
@@ -75,7 +78,8 @@ export function checkDonorEligibility(donor: any): EligibilityCheckResult {
     criterion: "Hemoglobin",
     value: `${hemoglobin} g/dL`,
     required: "Minimum 12.5 g/dL",
-    reason: "Hemoglobin level must be at least 12.5 g/dL to donate blood safely",
+    reason:
+      "Hemoglobin level must be at least 12.5 g/dL to donate blood safely",
     passed: hemoglobin >= 12.5,
   };
   allCriteria.push(hemoglobinCheck);
@@ -107,14 +111,17 @@ export function checkDonorEligibility(donor: any): EligibilityCheckResult {
   // 6. Donation Interval Check (if not first-time donor)
   if (!donor.neverDonated && donor.lastDonation) {
     const lastDonation = new Date(donor.lastDonation);
-    const monthsDiff = (today.getTime() - lastDonation.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    const monthsDiff =
+      (today.getTime() - lastDonation.getTime()) / (1000 * 60 * 60 * 24 * 30);
     const requiredGap = donor.gender === "male" ? 3 : 4;
 
     const intervalCheck: EligibilityCriterion = {
       criterion: "Donation Interval",
       value: `${monthsDiff.toFixed(1)} months since last donation`,
       required: `Minimum ${requiredGap} months`,
-      reason: `You must wait at least ${requiredGap} months since your last donation (${requiredGap === 3 ? "male" : "female"} donor)`,
+      reason: `You must wait at least ${requiredGap} months since your last donation (${
+        requiredGap === 3 ? "male" : "female"
+      } donor)`,
       passed: monthsDiff >= requiredGap,
     };
     allCriteria.push(intervalCheck);
@@ -147,14 +154,21 @@ export async function processDonorVerification(
   eventId?: string;
 }> {
   try {
-    console.log(`[VerificationAgent] Processing verification for donor: ${donorId}`);
+    console.log(
+      `[VerificationAgent] Processing verification for donor: ${donorId}`
+    );
 
     const donor = await db.donorRegistration.findUnique({
       where: { id: donorId },
     });
 
     if (!donor) {
-      return { success: false, stage: "document", passed: false, reason: "Donor not found" };
+      return {
+        success: false,
+        stage: "document",
+        passed: false,
+        reason: "Donor not found",
+      };
     }
 
     // Stage 1: Document Verification (already done, we receive results)
@@ -183,7 +197,8 @@ export async function processDonorVerification(
             stage: "document",
             passed: false,
             mismatches: documentVerificationResults.mismatches,
-            reasoning: "Document verification failed. Donor can retry up to 3 times.",
+            reasoning:
+              "Document verification failed. Donor can retry up to 3 times.",
           },
           confidence: 1.0,
         },
@@ -199,12 +214,14 @@ export async function processDonorVerification(
     }
 
     // Stage 2: Eligibility Screening
-    console.log(`[VerificationAgent] Documents verified. Starting eligibility check...`);
+    console.log(
+      `[VerificationAgent] Documents verified. Starting eligibility check...`
+    );
 
     const eligibilityResult = checkDonorEligibility(donor);
 
     // Use LLM reasoning for eligibility decision (AGENTIC AI)
-    let finalDecision: 'approved' | 'rejected' | 'needs_review';
+    let finalDecision: "approved" | "rejected" | "needs_review";
     let eligibilityReasoning: string;
     let edgeCases: string[] = [];
     let recommendations: string[] = [];
@@ -212,9 +229,11 @@ export async function processDonorVerification(
     let confidence: number = 1.0;
 
     try {
-      console.log("[VerificationAgent] Using LLM reasoning to analyze eligibility...");
+      console.log(
+        "[VerificationAgent] Using LLM reasoning to analyze eligibility..."
+      );
       const llmResult = await reasonAboutEligibility(eligibilityResult, donor);
-      
+
       finalDecision = llmResult.finalDecision;
       eligibilityReasoning = llmResult.reasoning;
       edgeCases = llmResult.edgeCases;
@@ -222,14 +241,23 @@ export async function processDonorVerification(
       confidence = llmResult.confidence;
       llmUsed = true;
 
-      console.log(`[VerificationAgent] LLM decision: ${finalDecision} (confidence: ${(confidence * 100).toFixed(1)}%)`);
+      console.log(
+        `[VerificationAgent] LLM decision: ${finalDecision} (confidence: ${(
+          confidence * 100
+        ).toFixed(1)}%)`
+      );
     } catch (error) {
-      console.warn("[VerificationAgent] LLM reasoning failed, using algorithmic decision:", error);
+      console.warn(
+        "[VerificationAgent] LLM reasoning failed, using algorithmic decision:",
+        error
+      );
       // Fallback to algorithmic decision
-      finalDecision = eligibilityResult.passed ? 'approved' : 'rejected';
+      finalDecision = eligibilityResult.passed ? "approved" : "rejected";
       eligibilityReasoning = eligibilityResult.passed
         ? "All eligibility criteria met. Donor approved."
-        : `Donor failed ${eligibilityResult.failedCriteria.length} eligibility criteria: ${eligibilityResult.failedCriteria
+        : `Donor failed ${
+            eligibilityResult.failedCriteria.length
+          } eligibility criteria: ${eligibilityResult.failedCriteria
             .map((c) => c.criterion)
             .join(", ")}`;
       llmUsed = false;
@@ -238,17 +266,22 @@ export async function processDonorVerification(
     // Override LLM decision if hard medical requirements failed (safety first)
     if (!eligibilityResult.passed) {
       // Check for critical failures that cannot be overridden
-      const criticalFailures = eligibilityResult.failedCriteria.filter(c => 
-        c.criterion === 'Age' || 
-        c.criterion.includes('Test') || 
-        c.criterion === 'Weight' ||
-        c.criterion === 'Hemoglobin'
+      const criticalFailures = eligibilityResult.failedCriteria.filter(
+        (c) =>
+          c.criterion === "Age" ||
+          c.criterion.includes("Test") ||
+          c.criterion === "Weight" ||
+          c.criterion === "Hemoglobin"
       );
-      
-      if (criticalFailures.length > 0 && finalDecision === 'approved') {
-        console.warn("[VerificationAgent] LLM suggested approval but critical medical requirements failed. Overriding to rejected.");
-        finalDecision = 'rejected';
-        eligibilityReasoning = `Critical medical requirements failed: ${criticalFailures.map(c => c.criterion).join(', ')}. Safety override applied.`;
+
+      if (criticalFailures.length > 0 && finalDecision === "approved") {
+        console.warn(
+          "[VerificationAgent] LLM suggested approval but critical medical requirements failed. Overriding to rejected."
+        );
+        finalDecision = "rejected";
+        eligibilityReasoning = `Critical medical requirements failed: ${criticalFailures
+          .map((c) => c.criterion)
+          .join(", ")}. Safety override applied.`;
       }
     }
 
@@ -274,22 +307,33 @@ export async function processDonorVerification(
     await db.agentDecision.create({
       data: {
         agentType: AgentType.VERIFICATION,
-        eventType: eligibilityResult.passed ? "eligibility_passed" : "eligibility_failed",
+        eventType: eligibilityResult.passed
+          ? "eligibility_passed"
+          : "eligibility_failed",
         requestId: donorId,
         decision: {
           stage: "eligibility",
           passed: eligibilityResult.passed,
           final_decision: finalDecision,
-          failed_criteria: JSON.parse(JSON.stringify(eligibilityResult.failedCriteria)),
-          all_criteria: JSON.parse(JSON.stringify(eligibilityResult.allCriteria)),
-          reasoning: eligibilityReasoning || (eligibilityResult.passed
-            ? "All eligibility criteria met. Donor approved."
-            : `Donor failed ${eligibilityResult.failedCriteria.length} eligibility criteria: ${eligibilityResult.failedCriteria
-                .map((c) => c.criterion)
-                .join(", ")}`),
+          failed_criteria: JSON.parse(
+            JSON.stringify(eligibilityResult.failedCriteria)
+          ),
+          all_criteria: JSON.parse(
+            JSON.stringify(eligibilityResult.allCriteria)
+          ),
+          reasoning:
+            eligibilityReasoning ||
+            (eligibilityResult.passed
+              ? "All eligibility criteria met. Donor approved."
+              : `Donor failed ${
+                  eligibilityResult.failedCriteria.length
+                } eligibility criteria: ${eligibilityResult.failedCriteria
+                  .map((c) => c.criterion)
+                  .join(", ")}`),
           llm_used: llmUsed,
           edge_cases: edgeCases.length > 0 ? edgeCases : undefined,
-          recommendations: recommendations.length > 0 ? recommendations : undefined,
+          recommendations:
+            recommendations.length > 0 ? recommendations : undefined,
         } as any,
         confidence: confidence,
       },
@@ -301,15 +345,19 @@ export async function processDonorVerification(
       data: {
         eligibilityChecked: true,
         eligibilityPassed: eligibilityResult.passed,
-        failedCriteria: eligibilityResult.failedCriteria.length > 0 
-          ? JSON.parse(JSON.stringify(eligibilityResult.failedCriteria)) as any
-          : null,
+        failedCriteria:
+          eligibilityResult.failedCriteria.length > 0
+            ? (JSON.parse(
+                JSON.stringify(eligibilityResult.failedCriteria)
+              ) as any)
+            : null,
       },
     });
 
     // Determine final outcome based on LLM decision (with safety overrides)
-    const finalPassed = finalDecision === 'approved' && eligibilityResult.passed;
-    const needsReview = finalDecision === 'needs_review';
+    const finalPassed =
+      finalDecision === "approved" && eligibilityResult.passed;
+    const needsReview = finalDecision === "needs_review";
 
     if (finalPassed) {
       console.log(`[VerificationAgent] ✅ Donor ${donorId} passed all checks`);
@@ -321,7 +369,11 @@ export async function processDonorVerification(
         eventId,
       };
     } else if (needsReview) {
-      console.log(`[VerificationAgent] ⚠️ Donor ${donorId} flagged for review: ${edgeCases.join(', ')}`);
+      console.log(
+        `[VerificationAgent] ⚠️ Donor ${donorId} flagged for review: ${edgeCases.join(
+          ", "
+        )}`
+      );
       return {
         success: true,
         stage: "eligibility",
@@ -372,10 +424,15 @@ export async function getVerificationStats(): Promise<{
     });
 
     const total = decisions.length;
-    const documentFailed = decisions.filter((d) => d.eventType === "document_verification_failed")
-      .length;
-    const eligibilityFailed = decisions.filter((d) => d.eventType === "eligibility_failed").length;
-    const passed = decisions.filter((d) => d.eventType === "eligibility_passed").length;
+    const documentFailed = decisions.filter(
+      (d) => d.eventType === "document_verification_failed"
+    ).length;
+    const eligibilityFailed = decisions.filter(
+      (d) => d.eventType === "eligibility_failed"
+    ).length;
+    const passed = decisions.filter(
+      (d) => d.eventType === "eligibility_passed"
+    ).length;
 
     // Count common failure criteria
     const criteriaCount: Record<string, number> = {};
@@ -413,4 +470,3 @@ export async function getVerificationStats(): Promise<{
     };
   }
 }
-

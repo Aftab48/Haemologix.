@@ -26,9 +26,12 @@ import { Upload, CheckCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import {
   checkIfDonorApplied,
+  markDonorAsApplied,
 } from "@/lib/actions/user.actions";
 import { useRouter } from "next/navigation";
 import { submitDonorRegistration } from "@/lib/actions/donor.actions";
+import { sendDonorRegistrationEmail } from "@/lib/actions/mails.actions";
+import { sendDonorRegistrationSMS } from "@/lib/actions/sms.actions";
 import GradientBackground from "@/components/GradientBackground";
 
 const initialFormData: DonorData = {
@@ -242,6 +245,15 @@ export default function DonorRegistration() {
         console.error("Donor registration failed:", result.error);
         return;
       }
+      
+      // Note: markDonorAsApplied() is now called inside verification.actions.ts
+      // only if the AI verification passes
+
+      // Step 2: Send registration email
+      await sendDonorRegistrationEmail(formData.email, formData.firstName);
+
+      // Step 3: Send registration SMS
+      await sendDonorRegistrationSMS(formData.phone, formData.firstName);
 
       console.log("Form submitted:", formData);
       setIsSubmitted(true);

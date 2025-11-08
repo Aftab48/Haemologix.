@@ -4,15 +4,22 @@ import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Shield, Activity, Droplets } from "lucide-react";
+import { Heart, Shield, Activity, Droplet, Droplets } from "lucide-react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useUser,
+} from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import PasskeyModal from "@/components/PasskeyModal";
 import { stats, features, steps, CarouselData } from "@/constants";
 import { getCurrentUser } from "@/lib/actions/user.actions";
-import { gsap } from "@/lib/gsap-utils";
-import Navbar from "@/components/Navbar";
+import Image from "next/image";
+import { gsap, slideInUp, fadeIn, staggerIn, scrollReveal } from "@/lib/gsap-utils";
 
 const HomePage = () => {
   const [activeFeature, setActiveFeature] = useState(0);
@@ -32,7 +39,7 @@ const HomePage = () => {
       router.push(path);
       return;
     }
-
+    
     if (!isSignedIn) {
       router.push("/auth/sign-up");
     } else {
@@ -79,25 +86,25 @@ const HomePage = () => {
           opacity: 0,
           y: 50,
           duration: 1,
-          ease: "power3.out",
+          ease: 'power3.out',
         });
       }
 
       if (statsRef.current) {
-        const statCards = statsRef.current.querySelectorAll(".stat-card");
+        const statCards = statsRef.current.querySelectorAll('.stat-card');
         // Set initial visible state first
         gsap.set(statCards, { opacity: 1, scale: 1 });
-
+        
         // Then animate from the initial state
         gsap.from(statCards, {
           scale: 0.8,
           opacity: 0,
           duration: 0.6,
           stagger: 0.1,
-          ease: "back.out(1.7)",
+          ease: 'back.out(1.7)',
           scrollTrigger: {
             trigger: statsRef.current,
-            start: "top 80%",
+            start: 'top 80%',
             once: true, // Only animate once
           },
         });
@@ -122,10 +129,8 @@ const HomePage = () => {
   }
 
   return (
-    <div
-      className="min-h-screen relative"
-      style={{
-        background: `
+    <div className="min-h-screen relative" style={{
+      background: `
         radial-gradient(at 15% 20%, #9B2226 0px, transparent 50%),
         radial-gradient(at 85% 10%, #94D2BD 0px, transparent 45%),
         radial-gradient(at 60% 80%, #E9D8A6 0px, transparent 50%),
@@ -135,28 +140,86 @@ const HomePage = () => {
         radial-gradient(at 90% 75%, #9B2226 0px, transparent 38%),
         radial-gradient(at 45% 25%, #94D2BD 0px, transparent 42%),
         linear-gradient(135deg, #E9D8A6 0%, #94D2BD 50%, #9B2226 100%)
-      `,
-      }}
-    >
+      `
+    }}>
       {/* Noise Overlay */}
-      <div
+      <div 
         className="fixed inset-0 opacity-60 mix-blend-overlay pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-          backgroundSize: "180px 180px",
+          backgroundRepeat: 'repeat',
+          backgroundSize: '180px 180px'
         }}
       />
       {/* Header */}
-      <Navbar />
+      <header className="backdrop-blur-lg sticky top-4 mx-4 md:mx-8 lg:mx-16 z-50 border border-mist-green/40 rounded-2xl shadow-lg px-6 py-3 flex justify-between items-center glass-morphism">
+        <div className="container mx-auto px-2 md:px-4 py-2 md:py-4 flex items-center justify-between gap-px rounded bg-transparent">
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary/10 border-2 border-primary animate-glow">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={48}
+                height={48}
+                className="rounded-full"
+              />
+            </div>
+            <Link href={"/"} className="text-xl font-outfit font-bold text-primary">
+              {"HaemoLogix"}
+            </Link>
+          </div>
+          <nav className="hidden md:flex items-center gap-6">
+            <Link
+              href="/#features"
+              className="hover:text-secondary transition-colors text-text-dark font-dm-sans font-medium"
+            >
+              Features
+            </Link>
+            <Link
+              href="/impact"
+              className="hover:text-secondary transition-colors text-text-dark font-dm-sans font-medium"
+            >
+              Impact
+            </Link>
+            <Link
+              href="/contact"
+              className="hover:text-secondary transition-colors text-text-dark font-dm-sans font-medium"
+            >
+              Contact
+            </Link>
+            <Link
+              href="/pilot"
+              className="hover:text-secondary transition-colors text-text-dark font-dm-sans font-medium"
+            >
+              Pilot
+            </Link>
+          </nav>
+          <div className="flex items-center gap-1 md:gap-3">
+            <SignedOut>
+              <SignInButton>
+                <Button className="gradient-oxygen hover:opacity-90 text-white rounded-full font-medium text-sm sm:text-base h-8 sm:h-10 px-4 sm:px-5 cursor-pointer transition-all">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <div className="hidden lg:block">
+                <SignUpButton>
+                  <Button className="gradient-ruby hover:opacity-90 text-white rounded-full font-medium text-sm sm:text-base h-8 sm:h-10 px-4 sm:px-5 cursor-pointer transition-all">
+                    Sign Up
+                  </Button>
+                </SignUpButton>
+              </div>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </div>
+        </div>
+      </header>
 
       {isAdmin && <PasskeyModal />}
 
       {/* Hero Section */}
-      <section
-        ref={heroRef}
-        className="py-20 px-4 bg-transparent relative overflow-hidden z-10"
-      >
+      <section ref={heroRef} className="py-20 px-4 bg-transparent relative overflow-hidden z-10">
         <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]"></div>
         <div className="absolute inset-0 oxygen-flow opacity-10"></div>
         <div className="container mx-auto text-center relative z-10">
@@ -165,9 +228,7 @@ const HomePage = () => {
           </Badge>
           <h1 className="text-5xl md:text-6xl font-outfit font-bold mb-6 leading-tight text-primary animate-fade-in">
             Save Lives with
-            <span className="block text-secondary mt-2">
-              Real-Time Blood Alerts
-            </span>
+            <span className="block text-secondary mt-2">Real-Time Blood Alerts</span>
           </h1>
           <p className="text-xl mb-8 max-w-3xl mx-auto leading-relaxed text-text-dark font-dm-sans animate-slide-in-up">
             Connect hospitals in critical need with eligible donors instantly.
@@ -243,10 +304,7 @@ const HomePage = () => {
           </div>
 
           {/* Stats */}
-          <div
-            ref={statsRef}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto relative z-20"
-          >
+          <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto relative z-20">
             {stats.map((stat, index) => (
               <Card
                 key={index}
@@ -257,9 +315,7 @@ const HomePage = () => {
                   <div className="text-2xl font-outfit font-bold text-secondary drop-shadow-md">
                     {stat.value}
                   </div>
-                  <div className="text-sm font-dm-sans text-text-dark font-semibold">
-                    {stat.label}
-                  </div>
+                  <div className="text-sm font-dm-sans text-text-dark font-semibold">{stat.label}</div>
                 </CardContent>
               </Card>
             ))}
@@ -298,7 +354,7 @@ const HomePage = () => {
                 >
                   <CardContent className="p-4 h-full flex flex-col">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center shrink-0 gradient-oxygen text-white">
+                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 gradient-oxygen text-white">
                         <feature.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
@@ -650,7 +706,9 @@ const HomePage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="text-text-dark py-12 my-0 px-4 mx-0 bg-text-dark/95 backdrop-blur-md relative z-10">
+      <footer
+        className="text-text-dark py-12 my-0 px-4 mx-0 bg-text-dark/95 backdrop-blur-md relative z-10"
+      >
         <div className="container mx-auto">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
@@ -665,93 +723,60 @@ const HomePage = () => {
               </p>
             </div>
             <div>
-              <h4 className="font-outfit font-semibold mb-4 text-background">
-                Platform
-              </h4>
+              <h4 className="font-outfit font-semibold mb-4 text-background">Platform</h4>
               <ul className="space-y-2 text-background/80 font-dm-sans">
                 <li>
-                  <Link
-                    href="/donor"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="/donor" className="hover:text-accent transition-colors">
                     Donor Dashboard
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/hospital"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="/hospital" className="hover:text-accent transition-colors">
                     Hospital Portal
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="/admin"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="/admin" className="hover:text-accent transition-colors">
                     Admin Panel
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-outfit font-semibold mb-4 text-background">
-                Support
-              </h4>
+              <h4 className="font-outfit font-semibold mb-4 text-background">Support</h4>
               <ul className="space-y-2 text-background/80 font-dm-sans">
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     Help Center
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     Contact Us
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     Emergency
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-outfit font-semibold mb-4 text-background">
-                Legal
-              </h4>
+              <h4 className="font-outfit font-semibold mb-4 text-background">Legal</h4>
               <ul className="space-y-2 text-background/80 font-dm-sans">
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href="#"
-                    className="hover:text-accent transition-colors"
-                  >
+                  <Link href="#" className="hover:text-accent transition-colors">
                     HIPAA Compliance
                   </Link>
                 </li>

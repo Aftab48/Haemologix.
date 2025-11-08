@@ -5,4 +5,5 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - tesseract
+  - tesseract.js
   - unrs-resolver

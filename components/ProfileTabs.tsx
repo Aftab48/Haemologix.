@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { profileTabsConfig } from "@/configs/profileTabs";
 import { formatLastActivity } from "@/lib/utils";
-import { SuspensionBadge, AttemptsBadge } from "./VerificationBadge";
+import Image from "next/image";
+import { db } from "@/db";
+import { VerificationBadge, SuspensionBadge, AttemptsBadge } from "./VerificationBadge";
 import { Badge } from "./ui/badge";
 
 interface ProfileTabsProps {

@@ -81,10 +81,10 @@ export async function publishEvent(
     });
 
     console.log(`[EventBus] Published ${type} by ${agentType}:`, event.id);
-    
+
     // TODO: If Redis is configured, also publish to Redis channel
     // await publishToRedis(`events:${agentType}`, payload);
-    
+
     return event.id;
   } catch (error) {
     console.error(`[EventBus] Error publishing event:`, error);
@@ -172,4 +172,3 @@ export async function getRecentEvents(limit: number = 50): Promise<any[]> {
     return [];
   }
 }
-

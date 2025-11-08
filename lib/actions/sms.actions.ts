@@ -1,6 +1,6 @@
 "use server";
 
-import { sendSMS } from "../twilio";
+import { sendSMS } from "../twillio";
 
 // Donor registration confirmation
 export async function sendDonorRegistrationSMS(to: string, name: string) {
