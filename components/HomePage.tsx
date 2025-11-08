@@ -298,7 +298,7 @@ const HomePage = () => {
                 >
                   <CardContent className="p-4 h-full flex flex-col">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 gradient-oxygen text-white">
+                      <div className="w-6 h-6 md:w-10 md:h-10 rounded-lg flex items-center justify-center shrink-0 gradient-oxygen text-white">
                         <feature.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1">

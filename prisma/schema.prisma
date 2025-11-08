@@ -24,6 +24,12 @@ enum UrgencyLevel {
   CRITICAL
 }
 
+enum ResponseStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
 model DonorRegistration {
   id                      String          @id @default(uuid())
   firstName               String
@@ -69,6 +75,7 @@ model DonorRegistration {
   latitude                String?
   longitude               String?
   approvals               Approval[]      @relation("DonorApprovals")
+  responses               AlertResponse[]
 }
 
 model HospitalRegistration {
@@ -122,7 +129,9 @@ model HospitalRegistration {
   latitude                      String?
   longitude                     String?
   alerts                        Alert[]
-    approvals                     Approval[]     @relation("HospitalApprovals")
+  approvals                     Approval[]     @relation("HospitalApprovals")
+  inventory                     InventoryUnit[]
+  inventoryThresholds           InventoryThreshold[]
 }
 
 model Admin {
@@ -162,5 +171,49 @@ model Alert {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   hospital     HospitalRegistration @relation(fields: [hospitalId], references: [id])
+  responses    AlertResponse[]
 }
 
+model AlertResponse {
+  id        String            @id @default(uuid())
+  alertId   String
+  donorId   String
+  status    ResponseStatus    @default(PENDING)
+  confirmed Boolean  @default(false)
+  createdAt DateTime          @default(now())
+  alert     Alert             @relation(fields: [alertId], references: [id])
+  donor     DonorRegistration @relation(fields: [donorId], references: [id])
+}
+
+model InventoryUnit {
+  id          String   @id @default(uuid())
+  hospitalId  String
+  bloodType   String   // "O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"
+  units       Int      // Number of units available
+  expiryDate  DateTime // Expiry date of units
+  reserved    Boolean  @default(false)
+  reservedFor String?  // Request ID if reserved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hospital HospitalRegistration @relation(fields: [hospitalId], references: [id])
+
+  @@index([hospitalId, bloodType])
+  @@index([reserved])
+  @@index([expiryDate])
+}
+
+model InventoryThreshold {
+  id              String   @id @default(uuid())
+  hospitalId      String
+  bloodType       String   // "O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"
+  minimumRequired Int      // Minimum units required (critical threshold = minimumRequired * 0.4)
+  optimalLevel    Int?     // Optimal stock level
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  hospital HospitalRegistration @relation(fields: [hospitalId], references: [id])
+
+  @@unique([hospitalId, bloodType]) // One threshold per blood type per hospital
+  @@index([hospitalId])
+}
